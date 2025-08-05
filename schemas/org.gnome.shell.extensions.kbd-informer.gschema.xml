@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+<schema id="org.gnome.shell.extensions.kbd-informer" path="/org/gnome/shell/extensions/kbd-informer-digitalspace-name/">
+<key name="shift-symbol" type="s">
+<default>'⇧'</default>
+<summary>Shift</summary>
+<description>Symbol displayed when the Shift modifier is active.</description>
+</key>
+<key name="caps-symbol" type="s">
+<default>'Caps'</default>
+<summary>Caps Lock</summary>
+<description>Symbol displayed when the Caps Lock modifier is active.</description>
+</key>
+<key name="control-symbol" type="s">
+<default>'⋀'</default>
+<summary>Control</summary>
+<description>Symbol displayed when the Control modifier is active.</description>
+</key>
+<key name="alt-symbol" type="s">
+<default>'⌥'</default>
+<summary>Alt</summary>
+<description>Symbol displayed when the Alt modifier is active.</description>
+</key>
+<key name="num-symbol" type="s">
+<default>'Num'</default>
+<summary>Num Lock</summary>
+<description>Symbol displayed when the Num Lock modifier is active.</description>
+</key>
+<key name="scroll-symbol" type="s">
+<default>'◆'</default>
+<summary>Scroll Lock</summary>
+<description>Symbol displayed when the Scroll Lock modifier is active.</description>
+</key>
+<key name="super-symbol" type="s">
+<default>'⌘'</default>
+<summary>Super</summary>
+<description>Symbol displayed when the Super modifier is active.</description>
+</key>
+<key name="altgr-symbol" type="s">
+<default>'⎇'</default>
+<summary>AltGr</summary>
+<description>Symbol displayed when the AltGr modifier is active.</description>
+</key>
+<key name="saved-symbols" type="a{ss}">
+<default>{}</default>
+<summary>Saved symbols</summary>
+<description>User-saved symbols preset.</description>
+</key>
+</schema>
+</schemalist>

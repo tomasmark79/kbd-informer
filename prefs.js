@@ -1,0 +1,475 @@
+/**
+ * Keyboard Informer - Preferences UI
+ * Configuration interface for keyboard modifier status extension
+ * Copyright (C) 2025 Tomáš Mark
+ */
+
+import Gtk from 'gi://Gtk';
+import Adw from 'gi://Adw';
+import GLib from 'gi://GLib';
+import { ExtensionPreferences, gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
+
+// Constants
+const LOG_TAG = 'KBD-Informer-Prefs:';
+
+// Configuration keys grouped by category
+const CONFIG_KEYS = {
+    modifiers: [
+        'shift-symbol', 'caps-symbol', 'control-symbol', 'alt-symbol',
+        'num-symbol', 'scroll-symbol', 'super-symbol', 'altgr-symbol'
+    ]
+};
+
+// Predefined symbol presets - initialized in getSymbolPresets()
+let SYMBOL_PRESETS = null;
+
+function getSymbolPresets(settingsManager = null) {
+    if (!SYMBOL_PRESETS) {
+        SYMBOL_PRESETS = {
+            modifiers: new Map([
+                [_('Symbols'), ['⇧', 'Caps', '⌃', '⎇', 'Num', '⇳', '❖', '⎈']]
+            ])
+        };
+    }
+    return SYMBOL_PRESETS;
+}
+
+/**
+ * Settings Manager - Handles GSettings operations and state tracking
+ */
+class SettingsManager {
+    constructor(extension) {
+        this._extension = extension;
+        this._settings = null;
+        this._schema = null;
+        this.currentSymbols = {};
+        this.savedSymbols = {};
+    }
+
+    initialize() {
+        this._settings = this._extension.getSettings();
+        this._schema = this._settings.settings_schema;
+        this._loadCurrentState();
+    }
+
+    _loadCurrentState() {
+        const allKeys = CONFIG_KEYS.modifiers;
+        this.currentSymbols = this._getSymbolsFromSettings(allKeys);
+        this.savedSymbols = this._settings.get_value('saved-symbols').deep_unpack();
+
+        console.debug(`${LOG_TAG} Current symbols: ${JSON.stringify(this.currentSymbols)}`);
+        console.debug(`${LOG_TAG} Saved symbols: ${JSON.stringify(this.savedSymbols)}`);
+    }
+
+    _getSymbolsFromSettings(keys) {
+        return Object.fromEntries(
+            keys.map(key => [key, this._settings.get_string(key)])
+        );
+    }
+
+    getSchemaDefaults(keys) {
+        return keys.map(key => this._settings.get_default_value(key).deep_unpack());
+    }
+
+    getSchemaKey(key) {
+        return this._schema.get_key(key);
+    }
+
+    setString(key, value) {
+        this._settings.set_string(key, value);
+        this.currentSymbols[key] = value;
+    }
+
+    connect(signal, callback) {
+        return this._settings.connect(signal, callback);
+    }
+
+    setSavedSymbols(symbols) {
+        this.savedSymbols = { ...symbols };
+        this._settings.set_value('saved-symbols', new GLib.Variant('a{ss}', this.savedSymbols));
+    }
+
+    symbolsEqual(obj1, obj2) {
+        const keys1 = Object.keys(obj1);
+        const keys2 = Object.keys(obj2);
+
+        if (keys1.length !== keys2.length) return false;
+
+        return keys1.every(key => (obj1[key] ?? '') === (obj2[key] ?? ''));
+    }
+
+    currentDiffersFromSaved(keys) {
+        return keys.some(key =>
+            this.currentSymbols[key] !== (this.savedSymbols[key] ?? '')
+        );
+    }
+}
+
+/**
+ * Simple Manager - Handles reset and save operations
+ */
+class SimpleManager {
+    constructor(settingsManager, keys, defaultValues) {
+        this.settingsManager = settingsManager;
+        this.keys = keys;
+        this.defaultValues = defaultValues;
+    }
+
+    isCurrentEqualToDefault() {
+        return this.keys.every((key, i) =>
+            this.settingsManager.currentSymbols[key] === this.defaultValues[i]
+        );
+    }
+
+    isCurrentEqualToSaved() {
+        return !this.settingsManager.currentDiffersFromSaved(this.keys);
+    }
+
+    applyDefaults(entryManager) {
+        console.debug(`${LOG_TAG} Applying defaults: ${this.defaultValues}`);
+
+        this.keys.forEach((key, i) => {
+            const value = this.defaultValues[i];
+            if (this.settingsManager.currentSymbols[key] !== value) {
+                entryManager.updateEntry(key, value);
+                this.settingsManager.setString(key, value);
+            }
+        });
+    }
+
+    saveCurrentAsPreset() {
+        this.keys.forEach(key => {
+            this.settingsManager.savedSymbols[key] = this.settingsManager.currentSymbols[key];
+        });
+
+        console.debug(`${LOG_TAG} Saving current symbols: ${JSON.stringify(this.settingsManager.savedSymbols)}`);
+        this.settingsManager.setSavedSymbols(this.settingsManager.savedSymbols);
+    }
+}
+
+/**
+ * Entry Manager - Handles text entry widgets and their signals
+ */
+class EntryManager {
+    constructor() {
+        this.entries = new Map();
+    }
+
+    addEntry(key, entry, changeCallback) {
+        const changeId = entry.connect('changed', () => {
+            const newValue = entry.text;
+            console.debug(`${LOG_TAG} Entry changed ${key}: -> ${newValue}`);
+            changeCallback(key, newValue);
+        });
+
+        this.entries.set(key, { entry, changeId });
+        console.debug(`${LOG_TAG} Added entry for ${key}: ${entry.text}`);
+    }
+
+    updateEntry(key, value) {
+        const entryData = this.entries.get(key);
+        if (!entryData) return;
+
+        const { entry, changeId } = entryData;
+
+        // Block signal to prevent recursion
+        entry.block_signal_handler(changeId);
+        console.debug(`${LOG_TAG} Updating entry ${key}: ${entry.text} -> ${value}`);
+        entry.text = value;
+
+        // Unblock after idle to ensure proper signal handling
+        GLib.idle_add(null, () => {
+            entry.unblock_signal_handler(changeId);
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    getEntry(key) {
+        const entryData = this.entries.get(key);
+        return entryData ? entryData.entry : null;
+    }
+}
+
+/**
+ * Dialog Manager - Handles confirmation dialogs
+ */
+class DialogManager {
+    static showSwitchConfirmation(window, title, keys, settingsManager, onConfirm, onCancel) {
+        console.debug(`${LOG_TAG} Showing switch confirmation dialog`);
+
+        const dialog = new Adw.MessageDialog({
+            transient_for: window,
+            modal: true,
+            heading: _('Unsaved custom symbols'),
+            body: _('Switching presets will discard your custom symbols. Do you want to save before switching?'),
+        });
+
+        // Create comparison table if there are differences
+        const grid = DialogManager._createComparisonGrid(title, keys, settingsManager);
+        if (grid) {
+            dialog.set_extra_child(grid);
+        }
+
+        // Add response buttons
+        dialog.add_response('cancel', _('Cancel'));
+        dialog.add_response('save', _('Save'));
+        dialog.add_response('switch', _('Switch'));
+        dialog.set_response_appearance('save', Adw.ResponseAppearance.SUGGESTED);
+        dialog.set_response_appearance('switch', Adw.ResponseAppearance.DESTRUCTIVE);
+        dialog.set_default_response('cancel');
+        dialog.set_close_response('cancel');
+
+        dialog.connect('response', (_dialog, response) => {
+            console.debug(`${LOG_TAG} Dialog response: ${response}`);
+
+            switch (response) {
+                case 'cancel':
+                    onCancel();
+                    break;
+                case 'save':
+                    onConfirm(true);
+                    break;
+                case 'switch':
+                    onConfirm(false);
+                    break;
+            }
+
+            dialog.destroy();
+        });
+
+        dialog.show();
+    }
+
+    static _createComparisonGrid(title, keys, settingsManager) {
+        const schema = settingsManager._schema;
+        let hasChanges = false;
+
+        const grid = new Gtk.Grid({
+            column_spacing: 12,
+            row_spacing: 12,
+            halign: Gtk.Align.CENTER,
+            hexpand: true,
+            margin_top: 12,
+            margin_bottom: 12,
+            margin_start: 12,
+            margin_end: 12,
+        });
+
+        // Add headers
+        const headers = [title, _('Custom'), _('Saved')];
+        headers.forEach((header, col) => {
+            const label = new Gtk.Label({
+                label: header,
+                halign: Gtk.Align.CENTER,
+                hexpand: true,
+                width_chars: Math.max(6, header.length),
+            });
+            label.add_css_class('heading');
+            grid.attach(label, col, 0, 1, 1);
+        });
+
+        // Add rows for different values
+        let row = 1;
+        keys.forEach(key => {
+            const current = settingsManager.currentSymbols[key] ?? '';
+            const saved = settingsManager.savedSymbols[key] ?? '';
+
+            if (current !== saved) {
+                hasChanges = true;
+                const schemaKey = schema.get_key(key);
+                const cells = [_(schemaKey.get_summary()), current, saved];
+
+                cells.forEach((value, col) => {
+                    const label = new Gtk.Label({
+                        label: value,
+                        halign: Gtk.Align.CENTER,
+                        hexpand: true,
+                    });
+
+                    if (col === 0) {
+                        label.add_css_class('heading');
+                    }
+
+                    grid.attach(label, col, row, 1, 1);
+                });
+
+                row++;
+            }
+        });
+
+        return hasChanges ? grid : null;
+    }
+}
+
+/**
+ * Group Builder - Creates preference groups with simple reset and save buttons
+ */
+class GroupBuilder {
+    constructor(settingsManager, page) {
+        this.settingsManager = settingsManager;
+        this.page = page;
+    }
+
+    createGroup(title, description, keys, defaultValues) {
+        console.debug(`${LOG_TAG} Creating group: ${title}`);
+
+        const group = new Adw.PreferencesGroup({ title, description });
+        const entryManager = new EntryManager();
+        const simpleManager = new SimpleManager(this.settingsManager, keys, defaultValues);
+
+        // Create control buttons
+        const { resetButton, saveButton, headerBox } = this._createControlButtons();
+        group.set_header_suffix(headerBox);
+
+        // Setup button logic
+        this._setupButtonLogic(resetButton, saveButton, entryManager, simpleManager);
+
+        // Create entry rows
+        this._createEntryRows(group, keys, entryManager, () => {
+            this._updateButtonStates(resetButton, saveButton, simpleManager);
+        });
+
+        this.page.add(group);
+        console.debug(`${LOG_TAG} Group created: ${title}`);
+    }
+
+    _createControlButtons() {
+        const headerBox = new Gtk.Box({ spacing: 6 });
+
+        const resetButton = Gtk.Button.new_with_label(_('Reset to defaults'));
+        resetButton.valign = Gtk.Align.CENTER;
+
+        const saveButton = Gtk.Button.new_with_label(_('Save'));
+        saveButton.add_css_class('suggested-action');
+        saveButton.valign = Gtk.Align.CENTER;
+        saveButton.visible = false;
+
+        headerBox.append(resetButton);
+        headerBox.append(saveButton);
+
+        return { resetButton, saveButton, headerBox };
+    }
+
+    _setupButtonLogic(resetButton, saveButton, entryManager, simpleManager) {
+        const updateButtonStates = () => {
+            this._updateButtonStates(resetButton, saveButton, simpleManager);
+        };
+
+        // Handle reset button
+        resetButton.connect('clicked', () => {
+            console.debug(`${LOG_TAG} Reset button clicked`);
+            simpleManager.applyDefaults(entryManager);
+            updateButtonStates();
+        });
+
+        // Handle save button
+        saveButton.connect('clicked', () => {
+            console.debug(`${LOG_TAG} Save button clicked`);
+            simpleManager.saveCurrentAsPreset();
+            updateButtonStates();
+        });
+
+        // Handle external changes to saved symbols
+        this.settingsManager.connect('changed::saved-symbols', () => {
+            console.debug(`${LOG_TAG} Saved symbols changed externally`);
+            const newSavedSymbols = this.settingsManager._settings.get_value('saved-symbols').deep_unpack();
+
+            if (!this.settingsManager.symbolsEqual(this.settingsManager.savedSymbols, newSavedSymbols)) {
+                this.settingsManager.savedSymbols = newSavedSymbols;
+                updateButtonStates();
+            }
+        });
+
+        // Initial update
+        updateButtonStates();
+    }
+
+    _updateButtonStates(resetButton, saveButton, simpleManager) {
+        const isDefault = simpleManager.isCurrentEqualToDefault();
+        const isSaved = simpleManager.isCurrentEqualToSaved();
+
+        resetButton.sensitive = !isDefault;
+        saveButton.visible = !isSaved;
+
+        console.debug(`${LOG_TAG} Button states - Reset enabled: ${!isDefault}, Save visible: ${!isSaved}`);
+    }
+
+    _createEntryRows(group, keys, entryManager, onEntryChanged) {
+        keys.forEach(key => {
+            const schemaKey = this.settingsManager.getSchemaKey(key);
+            if (!schemaKey) {
+                console.warn(`${LOG_TAG} Schema doesn't contain key: ${key}`);
+                return;
+            }
+
+            const entry = new Gtk.Entry({
+                text: this.settingsManager.currentSymbols[key] || ''
+            });
+
+            const row = new Adw.ActionRow({
+                title: _(schemaKey.get_summary())
+            });
+
+            row.add_suffix(entry);
+            row.activatable_widget = entry;
+            group.add(row);
+
+            // Setup entry change handling
+            entryManager.addEntry(key, entry, (changedKey, newValue) => {
+                if (this.settingsManager.currentSymbols[changedKey] !== newValue) {
+                    this.settingsManager.setString(changedKey, newValue);
+                    onEntryChanged();
+                }
+            });
+
+            // Handle external settings changes
+            this.settingsManager.connect(`changed::${key}`, () => {
+                const newValue = this.settingsManager._settings.get_string(key);
+                if (this.settingsManager.currentSymbols[key] !== newValue) {
+                    console.debug(`${LOG_TAG} External change for ${key}: ${newValue}`);
+                    this.settingsManager.currentSymbols[key] = newValue;
+                    entryManager.updateEntry(key, newValue);
+                    onEntryChanged();
+                }
+            });
+        });
+    }
+}
+
+/**
+ * Main Preferences Class
+ */
+export default class KeyboardInformerPreferences extends ExtensionPreferences {
+    fillPreferencesWindow(window) {
+        console.debug(`${LOG_TAG} Initializing preferences window`);
+
+        this.settingsManager = new SettingsManager(this);
+        this.settingsManager.initialize();
+
+        const page = new Adw.PreferencesPage();
+        const groupBuilder = new GroupBuilder(this.settingsManager, page);
+
+        // Create preference groups
+        this._createPreferenceGroups(groupBuilder);
+
+        window.add(page);
+        window.show();
+
+        console.debug(`${LOG_TAG} Preferences window initialized`);
+    }
+
+    _createPreferenceGroups(groupBuilder) {
+        const symbolPresets = getSymbolPresets(this.settingsManager);
+
+        groupBuilder.createGroup(
+            _('Symbols for modifier keys'),
+            _('Sets the symbols displayed for modifier keys when they are pressed.'),
+            CONFIG_KEYS.modifiers,
+            symbolPresets.modifiers.get(_('Symbols'))
+        );
+    }
+}
+
+export function init() {
+    return new KeyboardInformerPreferences();
+}

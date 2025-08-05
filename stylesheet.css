@@ -1,0 +1,55 @@
+/* Používá standardní GNOME Shell třídy pro konzistentní vzhled */
+
+/* Panel button container - pro lepší centrování */
+.panel-button {
+    /* Flexbox pro dokonalé centrování */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Základní panel button styling (dědí od GNOME Shell) */
+.panel-button .state-label {
+    /* Standardní font a velikost jako ostatní panel elementy */
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    
+    /* Standardní barvy panelu */
+    color: inherit;
+    
+    /* Padding pro centrování */
+    padding: 0 6px;
+    
+    /* Vertikální zarovnání */
+    text-align: center;
+    vertical-align: middle;
+    
+    /* Zajištění správného line-height pro centrování */
+    line-height: 1.2;
+    
+    /* Žádné pozadí - používá transparentní vzhled jako ostatní text v panelu */
+    background: none;
+    border: none;
+    
+    /* Jemný stín pro čitelnost (standardní pro panel text) */
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* Alternativně - pokud chcete specifický styling */
+.state-label {
+    /* Fallback pro případ, že by nebyl v .panel-button kontextu */
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    color: inherit;
+    padding: 0 6px;
+    background: none;
+    border: none;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    
+    /* Vertikální centrování */
+    text-align: center;
+    vertical-align: middle;
+    line-height: 1.2;
+}
