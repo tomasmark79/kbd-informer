@@ -106,8 +106,6 @@ class SettingsManager {
     }
 
     loadSettings() {
-        console.debug(`${LOG_TAG} Loading settings...`);
-
         if (!this._settings) {
             console.warn(`${LOG_TAG} Settings object is null`);
             return;
@@ -123,8 +121,6 @@ class SettingsManager {
             [MODIFIER_MASKS.MOD4, this._settings.get_string('super-symbol')],
             [MODIFIER_MASKS.MOD5, this._settings.get_string('altgr-symbol')],
         ];
-
-        console.debug(`${LOG_TAG} Modifiers: ${this.symbols.modifiers.map(v => v[1])}`);
     }
 
     destroy() {
@@ -496,19 +492,14 @@ export default class KeyboardModifiersStatusExtension extends Extension {
     }
 
     _onUpdate() {
-        console.debug(`${LOG_TAG} Updating modifier state...`);
-
         // Get current modifier state
         const currentState = this._inputManager.getCurrentModifierState();
         this._stateTracker.updateState(currentState);
 
         // Check if state has changed
         if (!this._stateTracker.hasStateChanged()) {
-            console.debug(`${LOG_TAG} No state changes detected`);
             return GLib.SOURCE_CONTINUE;
         }
-
-        console.debug(`${LOG_TAG} State changed: ${this._stateTracker.previousState} -> ${this._stateTracker.currentState}`);
 
         // Handle notifications for specific modifier changes
         this._handleModifierNotifications();
@@ -516,7 +507,6 @@ export default class KeyboardModifiersStatusExtension extends Extension {
         // Update panel indicator
         this._updatePanelIndicator();
 
-        console.debug(`${LOG_TAG} Update completed`);
         return GLib.SOURCE_CONTINUE;
     }
 
@@ -561,15 +551,10 @@ export default class KeyboardModifiersStatusExtension extends Extension {
         // Build final indicator text - just join active modifiers with space
         const indicatorText = activeModifiers.join(' ');
 
-        console.debug(`${LOG_TAG} Panel indicator text: "${indicatorText}"`);
-        console.debug(`${LOG_TAG} Active modifiers: [${activeModifiers.join(', ')}]`);
-
         this._panelIndicator.updateText(indicatorText);
     }
 
     _showNotification(title, message) {
-        console.debug(`${LOG_TAG} Showing notification: ${title} - ${message}`);
-
         try {
             this._osdManager.show(title, message);
         } catch (error) {

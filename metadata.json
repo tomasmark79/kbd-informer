@@ -7,8 +7,8 @@
 	],
 	"uuid": "kbd-informer@digitalspace.name",
 	"name": "Keyboard Informer",
-	"description": "Shows keyboard modifiers status and provides notifications for key state changes. Useful when sticky keys are active.",
-	"original-author": "kbd-informer@digitalspace.name",
+	"description": "Shows keyboard modifiers status and provides notifications for key state changes.",
+	"original-authors": ["Tomáš Mark"],
         "url": "https://github.com/tomasmark79/kbd-informer",
         "settings-schema": "org.gnome.shell.extensions.kbd-informer"
 }
