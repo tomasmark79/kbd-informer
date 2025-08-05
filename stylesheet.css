@@ -1,44 +1,44 @@
-/* Používá standardní GNOME Shell třídy pro konzistentní vzhled */
+/* Uses standard GNOME Shell classes for consistent appearance */
 
-/* Panel button container - pro lepší centrování */
+/* Panel button container - for better centering */
 .panel-button {
-    /* Flexbox pro dokonalé centrování */
+    /* Flexbox for perfect centering */
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
-/* Základní panel button styling (dědí od GNOME Shell) */
+/* Basic panel button styling (inherits from GNOME Shell) */
 .panel-button .state-label {
-    /* Standardní font a velikost jako ostatní panel elementy */
+    /* Standard font and size like other panel elements */
     font-family: inherit;
     font-size: inherit;
     font-weight: inherit;
     
-    /* Standardní barvy panelu */
+    /* Standard panel colors */
     color: inherit;
     
-    /* Padding pro centrování */
+    /* Padding for centering */
     padding: 0 6px;
     
-    /* Vertikální zarovnání */
+    /* Vertical alignment */
     text-align: center;
     vertical-align: middle;
     
-    /* Zajištění správného line-height pro centrování */
+    /* Ensures correct line-height for centering */
     line-height: 1.2;
     
-    /* Žádné pozadí - používá transparentní vzhled jako ostatní text v panelu */
+    /* No background - uses transparent look like other text in the panel */
     background: none;
     border: none;
     
-    /* Jemný stín pro čitelnost (standardní pro panel text) */
+    /* Subtle shadow for readability (standard for panel text) */
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
-/* Alternativně - pokud chcete specifický styling */
+/* Alternatively - if you want specific styling */
 .state-label {
-    /* Fallback pro případ, že by nebyl v .panel-button kontextu */
+    /* Fallback in case it's not in the .panel-button context */
     font-family: inherit;
     font-size: inherit;
     font-weight: inherit;
@@ -48,7 +48,7 @@
     border: none;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
     
-    /* Vertikální centrování */
+    /* Vertical centering */
     text-align: center;
     vertical-align: middle;
     line-height: 1.2;
