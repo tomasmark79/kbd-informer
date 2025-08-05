@@ -161,7 +161,8 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 
 ## Author
 
-**Tomáš Mark** - *Initial work* - [SourceCode](https://github.com/tomasmark79)  
+**Tomáš Mark** - *Initial work*
+
  - partially inspired by sneetsher/keyboard_modifiers_status
 
 ## Acknowledgments
