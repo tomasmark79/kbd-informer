@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
-<schema id="org.gnome.shell.extensions.kbd-informer" path="/org/gnome/shell/extensions/kbd-informer-digitalspace-name/">
+<schema id="org.gnome.shell.extensions.kbd-informer" path="/org/gnome/shell/extensions/kbd-informer/">
 <key name="shift-symbol" type="s">
 <default>'⇧'</default>
 <summary>Shift</summary>
