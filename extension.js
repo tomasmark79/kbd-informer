@@ -26,7 +26,6 @@ const SHOW_OSD_ICON = true; // Set to true to show icon in OSD
 
 // Debug logging
 console.debug(`${LOG_TAG} Shell version: ${Config.PACKAGE_VERSION}`);
-console.debug(`${LOG_TAG} Clutter API: ${GIRepository.Repository.get_default().get_version('Clutter')}`);
 
 // Modifier masks mapping
 const MODIFIER_MASKS = {
