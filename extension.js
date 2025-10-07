@@ -220,7 +220,11 @@ const ModifiersOSD = GObject.registerClass(
         }
 
         _showWithAnimation() {
-            global.compositor.disable_unredirect();
+            // Disable unredirect if available (not present in Gnome 46+)
+            if (global.compositor && typeof global.compositor.disable_unredirect === 'function') {
+                global.compositor.disable_unredirect();
+            }
+            
             super.show();
             this.opacity = 0;
             this.get_parent().set_child_above_sibling(this, null);
@@ -257,7 +261,10 @@ const ModifiersOSD = GObject.registerClass(
                 mode: Clutter.AnimationMode.EASE_OUT_QUAD,
                 onComplete: () => {
                     this._reset();
-                    global.compositor.enable_unredirect();
+                    // Enable unredirect if available (not present in Gnome 46+)
+                    if (global.compositor && typeof global.compositor.enable_unredirect === 'function') {
+                        global.compositor.enable_unredirect();
+                    }
                 },
             });
             return GLib.SOURCE_REMOVE;
