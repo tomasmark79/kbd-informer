@@ -115,14 +115,16 @@ class SimpleManager {
         this.defaultValues = defaultValues;
     }
 
-    isCurrentEqualToDefault() {
+    isCurrentEqualToDefault(entryManager) {
         return this.keys.every((key, i) =>
-            this.settingsManager.currentSymbols[key] === this.defaultValues[i]
+            entryManager.getEntryText(key) === this.defaultValues[i]
         );
     }
 
-    isCurrentEqualToSaved() {
-        return !this.settingsManager.currentDiffersFromSaved(this.keys);
+    isCurrentEqualToSaved(entryManager) {
+        return this.keys.every(key => 
+            entryManager.getEntryText(key) === this.settingsManager.currentSymbols[key]
+        );
     }
 
     applyDefaults(entryManager) {
@@ -130,19 +132,23 @@ class SimpleManager {
 
         this.keys.forEach((key, i) => {
             const value = this.defaultValues[i];
-            if (this.settingsManager.currentSymbols[key] !== value) {
-                entryManager.updateEntry(key, value);
-                this.settingsManager.setString(key, value);
-            }
+            entryManager.updateEntry(key, value);
         });
     }
 
-    saveCurrentAsPreset() {
+    saveCurrentAsPreset(entryManager) {
+        const entryTexts = entryManager.getAllEntryTexts(this.keys);
+        
+        console.debug(`${LOG_TAG} Saving entries to settings: ${JSON.stringify(entryTexts)}`);
+
+        // Save entry values to settings
         this.keys.forEach(key => {
-            this.settingsManager.savedSymbols[key] = this.settingsManager.currentSymbols[key];
+            const value = entryTexts[key];
+            this.settingsManager.setString(key, value);
+            this.settingsManager.savedSymbols[key] = value;
         });
 
-        console.debug(`${LOG_TAG} Saving current symbols: ${JSON.stringify(this.settingsManager.savedSymbols)}`);
+        console.debug(`${LOG_TAG} Saving symbols to preset: ${JSON.stringify(this.settingsManager.savedSymbols)}`);
         this.settingsManager.setSavedSymbols(this.settingsManager.savedSymbols);
     }
 }
@@ -157,9 +163,8 @@ class EntryManager {
 
     addEntry(key, entry, changeCallback) {
         const changeId = entry.connect('changed', () => {
-            const newValue = entry.text;
-            console.debug(`${LOG_TAG} Entry changed ${key}: -> ${newValue}`);
-            changeCallback(key, newValue);
+            console.debug(`${LOG_TAG} Entry changed ${key}: -> ${entry.text}`);
+            changeCallback();
         });
 
         this.entries.set(key, { entry, changeId });
@@ -172,21 +177,34 @@ class EntryManager {
 
         const { entry, changeId } = entryData;
 
+        // Don't update if value is already the same
+        if (entry.text === value) {
+            return;
+        }
+
         // Block signal to prevent recursion
         entry.block_signal_handler(changeId);
         console.debug(`${LOG_TAG} Updating entry ${key}: ${entry.text} -> ${value}`);
         entry.text = value;
-
-        // Unblock after idle to ensure proper signal handling
-        GLib.idle_add(null, () => {
-            entry.unblock_signal_handler(changeId);
-            return GLib.SOURCE_REMOVE;
-        });
+        entry.unblock_signal_handler(changeId);
     }
 
     getEntry(key) {
         const entryData = this.entries.get(key);
         return entryData ? entryData.entry : null;
+    }
+
+    getEntryText(key) {
+        const entry = this.getEntry(key);
+        return entry ? entry.text : '';
+    }
+
+    getAllEntryTexts(keys) {
+        const texts = {};
+        keys.forEach(key => {
+            texts[key] = this.getEntryText(key);
+        });
+        return texts;
     }
 }
 
@@ -352,7 +370,7 @@ class GroupBuilder {
 
     _setupButtonLogic(resetButton, saveButton, entryManager, simpleManager) {
         const updateButtonStates = () => {
-            this._updateButtonStates(resetButton, saveButton, simpleManager);
+            this._updateButtonStates(resetButton, saveButton, entryManager, simpleManager);
         };
 
         // Handle reset button
@@ -365,7 +383,7 @@ class GroupBuilder {
         // Handle save button
         saveButton.connect('clicked', () => {
             console.debug(`${LOG_TAG} Save button clicked`);
-            simpleManager.saveCurrentAsPreset();
+            simpleManager.saveCurrentAsPreset(entryManager);
             updateButtonStates();
         });
 
@@ -384,9 +402,9 @@ class GroupBuilder {
         updateButtonStates();
     }
 
-    _updateButtonStates(resetButton, saveButton, simpleManager) {
-        const isDefault = simpleManager.isCurrentEqualToDefault();
-        const isSaved = simpleManager.isCurrentEqualToSaved();
+    _updateButtonStates(resetButton, saveButton, entryManager, simpleManager) {
+        const isDefault = simpleManager.isCurrentEqualToDefault(entryManager);
+        const isSaved = simpleManager.isCurrentEqualToSaved(entryManager);
 
         resetButton.sensitive = !isDefault;
         saveButton.visible = !isSaved;
@@ -414,19 +432,16 @@ class GroupBuilder {
             row.activatable_widget = entry;
             group.add(row);
 
-            // Setup entry change handling
-            entryManager.addEntry(key, entry, (changedKey, newValue) => {
-                if (this.settingsManager.currentSymbols[changedKey] !== newValue) {
-                    this.settingsManager.setString(changedKey, newValue);
-                    onEntryChanged();
-                }
-            });
+            // Setup entry change handling - only update button states, don't save to settings
+            entryManager.addEntry(key, entry, onEntryChanged);
 
             // Handle external settings changes
             this.settingsManager.connect(`changed::${key}`, () => {
                 const newValue = this.settingsManager._settings.get_string(key);
-                if (this.settingsManager.currentSymbols[key] !== newValue) {
-                    console.debug(`${LOG_TAG} External change for ${key}: ${newValue}`);
+                const currentValue = this.settingsManager.currentSymbols[key];
+                
+                if (currentValue !== newValue) {
+                    console.debug(`${LOG_TAG} External change for ${key}: ${currentValue} -> ${newValue}`);
                     this.settingsManager.currentSymbols[key] = newValue;
                     entryManager.updateEntry(key, newValue);
                     onEntryChanged();
