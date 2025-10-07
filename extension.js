@@ -179,8 +179,10 @@ const ModifiersOSD = GObject.registerClass(
             }
 
             // Text content container
+            // Use vertical: true for Gnome 46+ compatibility (Ubuntu 24.04)
+            // Falls back gracefully if orientation property is still supported
             this._textContainer = new St.BoxLayout({
-                orientation: Clutter.Orientation.VERTICAL,
+                vertical: true,
                 y_align: Clutter.ActorAlign.CENTER,
                 x_align: Clutter.ActorAlign.CENTER,
                 x_expand: true,
