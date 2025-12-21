@@ -6,6 +6,11 @@ A GNOME Shell extension that displays keyboard modifier keys in the top panel an
 ![GNOME Shell](https://img.shields.io/badge/GNOME%20Shell-45%2B-blue)
 ![License](https://img.shields.io/badge/License-GPL%20v3-green)
 
+> 🌱 **Help Keep This Going**
+> Your support makes a real difference. If you value my work and want to help me continue creating, please consider making a donation.  
+> 💙 **Donate here:** [https://paypal.me/TomasMark](https://paypal.me/TomasMark)
+> Every contribution is truly appreciated ✨
+
 ## Features
 
 - Shows active modifier keys in the top panel
@@ -43,4 +48,4 @@ GPL v3.0 - see [LICENSE](LICENSE) file.
 
 **Tomáš Mark** - *Initial work*
 
-Partially inspired by sneetsher/keyboard_modifiers_status
+Inspired by sneetsher/keyboard_modifiers_status

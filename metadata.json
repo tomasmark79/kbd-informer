@@ -10,5 +10,8 @@
 	"name": "Keyboard Informer",
 	"description": "Shows keyboard modifiers status and provides notifications for key state changes.\n\nDisplays active keyboard modifiers (Shift, Caps, Ctrl, Alt, etc.) in the top panel and shows OSD notifications when Caps Lock, Num Lock or Scroll Lock state changes.",
 	"url": "https://github.com/tomasmark79/kbd-informer",
-	"settings-schema": "org.gnome.shell.extensions.kbd-informer"
+	"settings-schema": "org.gnome.shell.extensions.kbd-informer",
+	"donations": {
+		"paypal": "TomasMark"
+	}
 }
