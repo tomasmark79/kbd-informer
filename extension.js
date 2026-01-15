@@ -1,33 +1,37 @@
-/**
- * Keyboard Modifiers Status Extension
- * Shows keyboard modifier status in the top panel and displays notifications for key changes
- * Copyright (C) 2025 Tomáš Mark
- */
+/* 
+Copyright (C) 2025 Tomáš Mark
 
-// Imports - GNOME Shell APIs
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import GObject from 'gi://GObject';
-import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import * as Config from 'resource:///org/gnome/shell/misc/config.js';
-import GIRepository from 'gi://GIRepository';
-import * as ExtensionUtils from 'resource:///org/gnome/shell/misc/extensionUtils.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as Layout from 'resource:///org/gnome/shell/ui/layout.js';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
-// Constants
 const LOG_TAG = 'KMS-Ext:';
 const UPDATE_INTERVAL_MS = 200;
 const OSD_HIDE_TIMEOUT_MS = 1500;
 const OSD_FADE_TIME_MS = 100;
 const SHOW_OSD_ICON = true; // Set to true to show icon in OSD
 
-// Debug logging
 console.debug(`${LOG_TAG} Shell version: ${Config.PACKAGE_VERSION}`);
 
-// Modifier masks mapping
 const MODIFIER_MASKS = {
     SHIFT: Clutter.ModifierType.SHIFT_MASK,
     LOCK: Clutter.ModifierType.LOCK_MASK,
@@ -39,9 +43,6 @@ const MODIFIER_MASKS = {
     MOD5: Clutter.ModifierType.MOD5_MASK,
 };
 
-/**
- * ModifierStateTracker - Tracks and manages keyboard modifier states
- */
 class ModifierStateTracker {
     constructor() {
         this.reset();
@@ -78,9 +79,6 @@ class ModifierStateTracker {
     }
 }
 
-/**
- * SettingsManager - Handles extension settings and symbol configuration
- */
 class SettingsManager {
     constructor(extension) {
         this._extension = extension;
@@ -131,9 +129,6 @@ class SettingsManager {
     }
 }
 
-/**
- * Custom OSD window for keyboard modifiers display
- */
 const ModifiersOSD = GObject.registerClass(
     class ModifiersOSD extends Clutter.Actor {
         _init(monitorIndex) {
@@ -153,11 +148,9 @@ const ModifiersOSD = GObject.registerClass(
         }
 
         _setupUI() {
-            // Add monitor constraint
             const constraint = new Layout.MonitorConstraint({ index: this._monitorIndex });
             this.add_constraint(constraint);
 
-            // Main container with OSD styling
             this._container = new St.BoxLayout({
                 style_class: 'osd-window',
                 style: 'margin-bottom: 8em;',
@@ -168,7 +161,6 @@ const ModifiersOSD = GObject.registerClass(
             });
             this.add_child(this._container);
 
-            // Icon (conditionally shown based on SHOW_OSD_ICON constant)
             if (SHOW_OSD_ICON) {
                 this._icon = new St.Icon({
                     icon_name: 'input-keyboard-symbolic',
@@ -178,7 +170,6 @@ const ModifiersOSD = GObject.registerClass(
                 this._container.add_child(this._icon);
             }
 
-            // Text content container
             // Use vertical: true for Gnome 46+ compatibility (Ubuntu 24.04)
             // Falls back gracefully if orientation property is still supported
             this._textContainer = new St.BoxLayout({
@@ -189,7 +180,6 @@ const ModifiersOSD = GObject.registerClass(
             });
             this._container.add_child(this._textContainer);
 
-            // Title label
             this._titleLabel = new St.Label({
                 style: 'font-size: 1.1em; text-align: center;',
                 x_align: Clutter.ActorAlign.CENTER,
@@ -198,7 +188,6 @@ const ModifiersOSD = GObject.registerClass(
             });
             this._textContainer.add_child(this._titleLabel);
 
-            // Status label
             this._statusLabel = new St.Label({
                 style: 'font-size: 1.0em; text-align: center;',
                 x_align: Clutter.ActorAlign.CENTER,
@@ -215,7 +204,6 @@ const ModifiersOSD = GObject.registerClass(
             if (!this.visible) {
                 this._showWithAnimation();
             }
-
             this._scheduleHide();
         }
 
@@ -224,7 +212,7 @@ const ModifiersOSD = GObject.registerClass(
             if (global.compositor && typeof global.compositor.disable_unredirect === 'function') {
                 global.compositor.disable_unredirect();
             }
-            
+
             super.show();
             this.opacity = 0;
             this.get_parent().set_child_above_sibling(this, null);
@@ -289,9 +277,7 @@ const ModifiersOSD = GObject.registerClass(
         }
     });
 
-/**
- * Manager for handling OSD windows across multiple monitors
- */
+
 class ModifiersOSDManager {
     constructor() {
         this._osdWindows = [];
@@ -354,9 +340,6 @@ class ModifiersOSDManager {
     }
 }
 
-/**
- * Panel indicator for displaying modifier status
- */
 class PanelIndicator {
     constructor() {
         this._indicator = null;
@@ -399,9 +382,6 @@ class PanelIndicator {
     }
 }
 
-/**
- * Input device manager for handling keyboard events
- */
 class InputDeviceManager {
     constructor() {
         this._seat = null;
@@ -439,26 +419,17 @@ export default class KeyboardModifiersStatusExtension extends Extension {
     enable() {
         console.debug(`${LOG_TAG} Enabling extension...`);
 
-        // Initialize components
         this._stateTracker = new ModifierStateTracker();
         this._settingsManager = new SettingsManager(this);
         this._osdManager = new ModifiersOSDManager();
         this._panelIndicator = new PanelIndicator();
         this._inputManager = new InputDeviceManager();
-
-        // Setup settings
         this._settingsManager.onSettingsChanged = () => {
             this._stateTracker.previousState = null; // Force refresh
         };
         this._settingsManager.initialize();
-
-        // Setup panel indicator
         this._panelIndicator.initialize();
-
-        // Setup input device manager
         this._inputManager.initialize();
-
-        // Start periodic updates
         this._updateTimeoutId = GLib.timeout_add(
             GLib.PRIORITY_DEFAULT,
             UPDATE_INTERVAL_MS,
@@ -471,13 +442,11 @@ export default class KeyboardModifiersStatusExtension extends Extension {
     disable() {
         console.debug(`${LOG_TAG} Disabling extension...`);
 
-        // Stop periodic updates
         if (this._updateTimeoutId) {
             GLib.source_remove(this._updateTimeoutId);
             this._updateTimeoutId = null;
         }
 
-        // Cleanup all components
         [
             this._inputManager,
             this._panelIndicator,
@@ -489,7 +458,7 @@ export default class KeyboardModifiersStatusExtension extends Extension {
             }
         });
 
-        // Reset references
+
         this._stateTracker = null;
         this._settingsManager = null;
         this._osdManager = null;
@@ -500,19 +469,14 @@ export default class KeyboardModifiersStatusExtension extends Extension {
     }
 
     _onUpdate() {
-        // Get current modifier state
         const currentState = this._inputManager.getCurrentModifierState();
         this._stateTracker.updateState(currentState);
 
-        // Check if state has changed
         if (!this._stateTracker.hasStateChanged()) {
             return GLib.SOURCE_CONTINUE;
         }
 
-        // Handle notifications for specific modifier changes
         this._handleModifierNotifications();
-
-        // Update panel indicator
         this._updatePanelIndicator();
 
         return GLib.SOURCE_CONTINUE;
@@ -548,7 +512,6 @@ export default class KeyboardModifiersStatusExtension extends Extension {
     _updatePanelIndicator() {
         const symbols = this._settingsManager.symbols;
 
-        // Collect active modifiers
         const activeModifiers = [];
         for (const [mask, symbol] of symbols.modifiers) {
             if (this._stateTracker.isModifierActive(mask)) {
@@ -556,7 +519,6 @@ export default class KeyboardModifiersStatusExtension extends Extension {
             }
         }
 
-        // Build final indicator text - just join active modifiers with space
         const indicatorText = activeModifiers.join(' ');
 
         this._panelIndicator.updateText(indicatorText);
