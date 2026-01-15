@@ -18,34 +18,20 @@ A GNOME Shell extension that displays keyboard modifier keys in the top panel an
 - Customizable symbols for all modifier keys
 - Multi-monitor support
 
+## Screenshots
+
+![OSD Notification](screenshot-osd.png)
+![Panel Indicator](screenshot-panel.png)  
+
 ## Installation
 
 ### From GNOME Extensions Website
 Install directly from: **https://extensions.gnome.org/extension/8500/keyboard-informer/**
 
 ### Manual Installation
+
 ```bash
 git clone https://github.com/tomasmark79/kbd-informer.git
 cd kbd-informer
-./build-release.sh
-# Install the generated zip file
+./build.sh -ri
 ```
-
-## Screenshots
-
-![Panel Indicator](screenshot-panel.png)
-![OSD Notification](screenshot-osd.png)
-
-## Configuration
-
-Open extension preferences to customize modifier symbols.
-
-## License
-
-GPL v3.0 - see [LICENSE](LICENSE) file.
-
-## Author
-
-**Tomáš Mark** - *Initial work*
-
-Inspired by sneetsher/keyboard_modifiers_status
