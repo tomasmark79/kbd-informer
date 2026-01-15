@@ -1,18 +1,27 @@
-/**
- * Keyboard Informer - Preferences UI
- * Configuration interface for keyboard modifier status extension
- * Copyright (C) 2025 Tomáš Mark
- */
+/* 
+Copyright (C) 2025 Tomáš Mark
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 
 import Gtk from 'gi://Gtk';
 import Adw from 'gi://Adw';
 import GLib from 'gi://GLib';
 import { ExtensionPreferences, gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-// Constants
 const LOG_TAG = 'KBD-Informer-Prefs:';
 
-// Configuration keys grouped by category
 const CONFIG_KEYS = {
     modifiers: [
         'shift-symbol', 'caps-symbol', 'control-symbol', 'alt-symbol',
@@ -20,23 +29,19 @@ const CONFIG_KEYS = {
     ]
 };
 
-// Predefined symbol presets - initialized in getSymbolPresets()
 let SYMBOL_PRESETS = null;
 
 function getSymbolPresets(settingsManager = null) {
     if (!SYMBOL_PRESETS) {
         SYMBOL_PRESETS = {
             modifiers: new Map([
-                [_('Symbols'), ['⇧', 'Caps', '⌃', '⎇', 'Num', '⇳', '❖', '⎈']]
+                [_('Symbols'), ['⇧', 'Caps', '^', '⎇', 'Num', '⇳', '❖', '⎇']],
             ])
         };
     }
     return SYMBOL_PRESETS;
 }
 
-/**
- * Settings Manager - Handles GSettings operations and state tracking
- */
 class SettingsManager {
     constructor(extension) {
         this._extension = extension;
@@ -105,9 +110,6 @@ class SettingsManager {
     }
 }
 
-/**
- * Simple Manager - Handles reset and save operations
- */
 class SimpleManager {
     constructor(settingsManager, keys, defaultValues) {
         this.settingsManager = settingsManager;
@@ -122,7 +124,7 @@ class SimpleManager {
     }
 
     isCurrentEqualToSaved(entryManager) {
-        return this.keys.every(key => 
+        return this.keys.every(key =>
             entryManager.getEntryText(key) === this.settingsManager.currentSymbols[key]
         );
     }
@@ -138,7 +140,7 @@ class SimpleManager {
 
     saveCurrentAsPreset(entryManager) {
         const entryTexts = entryManager.getAllEntryTexts(this.keys);
-        
+
         console.debug(`${LOG_TAG} Saving entries to settings: ${JSON.stringify(entryTexts)}`);
 
         // Save entry values to settings
@@ -153,9 +155,6 @@ class SimpleManager {
     }
 }
 
-/**
- * Entry Manager - Handles text entry widgets and their signals
- */
 class EntryManager {
     constructor() {
         this.entries = new Map();
@@ -177,7 +176,6 @@ class EntryManager {
 
         const { entry, changeId } = entryData;
 
-        // Don't update if value is already the same
         if (entry.text === value) {
             return;
         }
@@ -208,9 +206,6 @@ class EntryManager {
     }
 }
 
-/**
- * Dialog Manager - Handles confirmation dialogs
- */
 class DialogManager {
     static showSwitchConfirmation(window, title, keys, settingsManager, onConfirm, onCancel) {
         console.debug(`${LOG_TAG} Showing switch confirmation dialog`);
@@ -273,7 +268,6 @@ class DialogManager {
             margin_end: 12,
         });
 
-        // Add headers
         const headers = [title, _('Custom'), _('Saved')];
         headers.forEach((header, col) => {
             const label = new Gtk.Label({
@@ -286,7 +280,6 @@ class DialogManager {
             grid.attach(label, col, 0, 1, 1);
         });
 
-        // Add rows for different values
         let row = 1;
         keys.forEach(key => {
             const current = settingsManager.currentSymbols[key] ?? '';
@@ -319,9 +312,6 @@ class DialogManager {
     }
 }
 
-/**
- * Group Builder - Creates preference groups with simple reset and save buttons
- */
 class GroupBuilder {
     constructor(settingsManager, page) {
         this.settingsManager = settingsManager;
@@ -335,16 +325,13 @@ class GroupBuilder {
         const entryManager = new EntryManager();
         const simpleManager = new SimpleManager(this.settingsManager, keys, defaultValues);
 
-        // Create control buttons
         const { resetButton, saveButton, headerBox } = this._createControlButtons();
         group.set_header_suffix(headerBox);
 
-        // Setup button logic
         this._setupButtonLogic(resetButton, saveButton, entryManager, simpleManager);
 
-        // Create entry rows
         this._createEntryRows(group, keys, entryManager, () => {
-            this._updateButtonStates(resetButton, saveButton, simpleManager);
+            this._updateButtonStates(resetButton, saveButton, entryManager, simpleManager);
         });
 
         this.page.add(group);
@@ -360,7 +347,6 @@ class GroupBuilder {
         const saveButton = Gtk.Button.new_with_label(_('Save'));
         saveButton.add_css_class('suggested-action');
         saveButton.valign = Gtk.Align.CENTER;
-        saveButton.visible = false;
 
         headerBox.append(resetButton);
         headerBox.append(saveButton);
@@ -407,9 +393,9 @@ class GroupBuilder {
         const isSaved = simpleManager.isCurrentEqualToSaved(entryManager);
 
         resetButton.sensitive = !isDefault;
-        saveButton.visible = !isSaved;
+        saveButton.sensitive = !isSaved;
 
-        console.debug(`${LOG_TAG} Button states - Reset enabled: ${!isDefault}, Save visible: ${!isSaved}`);
+        console.debug(`${LOG_TAG} Button states - Reset enabled: ${!isDefault}, Save enabled: ${!isSaved}`);
     }
 
     _createEntryRows(group, keys, entryManager, onEntryChanged) {
@@ -439,7 +425,7 @@ class GroupBuilder {
             this.settingsManager.connect(`changed::${key}`, () => {
                 const newValue = this.settingsManager._settings.get_string(key);
                 const currentValue = this.settingsManager.currentSymbols[key];
-                
+
                 if (currentValue !== newValue) {
                     console.debug(`${LOG_TAG} External change for ${key}: ${currentValue} -> ${newValue}`);
                     this.settingsManager.currentSymbols[key] = newValue;
@@ -451,9 +437,7 @@ class GroupBuilder {
     }
 }
 
-/**
- * Main Preferences Class
- */
+// Main Preferences Class
 export default class KeyboardInformerPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         console.debug(`${LOG_TAG} Initializing preferences window`);
@@ -464,7 +448,6 @@ export default class KeyboardInformerPreferences extends ExtensionPreferences {
         const page = new Adw.PreferencesPage();
         const groupBuilder = new GroupBuilder(this.settingsManager, page);
 
-        // Create preference groups
         this._createPreferenceGroups(groupBuilder);
 
         window.add(page);
