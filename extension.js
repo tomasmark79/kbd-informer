@@ -348,17 +348,20 @@ class PanelIndicator {
 
     initialize() {
         this._indicator = new St.Bin({
-            style_class: 'panel-button',
+            style_class: 'panel-button kbd-indicator',
             reactive: false,
             can_focus: false,
-            x_expand: true,
+            x_expand: false,
             y_expand: false,
+            y_align: Clutter.ActorAlign.CENTER,
+            x_align: Clutter.ActorAlign.CENTER,
             track_hover: false
         });
 
         this._label = new St.Label({
-            style_class: 'state-label',
-            text: ''
+            style_class: 'panel-status-menu-label state-label',
+            text: '',
+            y_align: Clutter.ActorAlign.CENTER
         });
 
         this._indicator.set_child(this._label);

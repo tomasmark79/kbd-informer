@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 
 # Copyright (C) 2025 Tomáš Mark
@@ -29,6 +29,17 @@ cd "$SCRIPT_DIR"
 
 EXTENSION_UUID="kbd-informer@digitalspace.name"
 ZIP_NAME="${EXTENSION_UUID}.zip"
+
+function RequireCommand()
+{
+    if ! command -v "$1" >/dev/null 2>&1; then
+        echo -e "${RED}Error: '$1' not found.${NC}"
+        if [[ -n "$2" ]]; then
+            echo -e "${YELLOW}$2${NC}"
+        fi
+        exit 1
+    fi
+}
 
 function Help()
 {
@@ -105,6 +116,7 @@ if [[ $release ]]; then
         
         SCHEMA_FILE="schemas/org.gnome.shell.extensions.kbd-informer.gschema.xml"
         if [[ -f "$SCHEMA_FILE" ]]; then
+            RequireCommand "xmllint" "Install libxml2 (NixOS: nix shell nixpkgs#libxml2)"
             # Validate schema XML
             if ! xmllint --noout "$SCHEMA_FILE" 2>/dev/null; then
                 echo -e "${RED}Error: Schema XML is not valid!${NC}"
@@ -113,6 +125,7 @@ if [[ $release ]]; then
             echo -e "${GREEN}✓${NC} Schema XML is valid"
             
             # Compile schemas
+            RequireCommand "glib-compile-schemas" "Install glib.dev (NixOS: nix shell nixpkgs#glib.dev)"
             if ! glib-compile-schemas schemas/; then
                 echo -e "${RED}Error: Failed to compile schemas!${NC}"
                 exit 1
@@ -147,6 +160,7 @@ if [[ $build ]]; then
     # Compile schemas if present
     if [[ -d "schemas" ]]; then
         echo "Compiling schemas..."
+        RequireCommand "glib-compile-schemas" "Install glib.dev (NixOS: nix shell nixpkgs#glib.dev)"
         glib-compile-schemas schemas/
     fi
 
