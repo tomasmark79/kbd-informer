@@ -1,55 +1,11 @@
 /* Uses standard GNOME Shell classes for consistent appearance */
 
 /* Panel button container - for better centering */
-.panel-button {
+.kbd-indicator {
     /* Flexbox for perfect centering */
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
-/* Basic panel button styling (inherits from GNOME Shell) */
-.panel-button .state-label {
-    /* Standard font and size like other panel elements */
-    font-family: inherit;
-    font-size: inherit;
-    font-weight: inherit;
-    
-    /* Standard panel colors */
-    color: inherit;
-    
-    /* Padding for centering */
-    padding: 0 6px;
-    
-    /* Vertical alignment */
-    text-align: center;
-    vertical-align: middle;
-    
-    /* Ensures correct line-height for centering */
-    line-height: 1.2;
-    
-    /* No background - uses transparent look like other text in the panel */
-    background: none;
-    border: none;
-    
-    /* Subtle shadow for readability (standard for panel text) */
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-}
-
-/* Alternatively - if you want specific styling */
-.state-label {
-    /* Fallback in case it's not in the .panel-button context */
-    font-family: inherit;
-    font-size: inherit;
-    font-weight: inherit;
-    color: inherit;
-    padding: 0 6px;
-    background: none;
-    border: none;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-    
-    /* Vertical centering */
-    text-align: center;
-    vertical-align: middle;
-    line-height: 1.2;
-}
+/* Use GNOME Shell theme for label typography */
