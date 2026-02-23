@@ -35,7 +35,7 @@ function getSymbolPresets(settingsManager = null) {
     if (!SYMBOL_PRESETS) {
         SYMBOL_PRESETS = {
             modifiers: new Map([
-                [_('Symbols'), ['⇧', 'Caps', '^', '⎇', 'Num', '⇳', '❖', '⎇']],
+                [_('Symbols'), ['shift', 'caps', 'ctrl', 'alt', 'num', 'scroll', 'super', 'altgr']],
             ])
         };
     }
