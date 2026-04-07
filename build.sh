@@ -147,6 +147,7 @@ if [[ $release ]]; then
 
     zip -r "$ZIP_NAME" "${FILES_TO_ZIP[@]}" \
         -x "schemas/.git*" -x ".git*" -x "*.po" -x "*.pot" \
+        -x "schemas/gschemas.compiled" \
         > /dev/null
 
     echo -e "${GREEN}✓${NC} Release zip created: $ZIP_NAME ($(du -h "$ZIP_NAME" | cut -f1))"
@@ -176,6 +177,7 @@ if [[ $build ]]; then
         stylesheet.css \
         schemas/ \
         -x "schemas/.git*" -x ".git*" \
+        -x "schemas/gschemas.compiled" \
         > /dev/null
 
     echo "✓ Extension built: $ZIP_NAME"
