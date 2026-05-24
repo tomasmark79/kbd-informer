@@ -47,6 +47,7 @@ class SettingsManager {
         this._extension = extension;
         this._settings = null;
         this._schema = null;
+        this._signalIds = [];
         this.currentSymbols = {};
         this.savedSymbols = {};
     }
@@ -86,7 +87,9 @@ class SettingsManager {
     }
 
     connect(signal, callback) {
-        return this._settings.connect(signal, callback);
+        const signalId = this._settings.connect(signal, callback);
+        this._signalIds.push(signalId);
+        return signalId;
     }
 
     setSavedSymbols(symbols) {
@@ -107,6 +110,18 @@ class SettingsManager {
         return keys.some(key =>
             this.currentSymbols[key] !== (this.savedSymbols[key] ?? '')
         );
+    }
+
+    destroy() {
+        if (this._settings) {
+            this._signalIds.forEach(signalId => this._settings.disconnect(signalId));
+        }
+
+        this._signalIds = [];
+        this._settings = null;
+        this._schema = null;
+        this.currentSymbols = {};
+        this.savedSymbols = {};
     }
 }
 
@@ -442,13 +457,23 @@ export default class KeyboardInformerPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         console.debug(`${LOG_TAG} Initializing preferences window`);
 
-        this.settingsManager = new SettingsManager(this);
-        this.settingsManager.initialize();
+        const settingsManager = new SettingsManager(this);
+        settingsManager.initialize();
 
         const page = new Adw.PreferencesPage();
-        const groupBuilder = new GroupBuilder(this.settingsManager, page);
+        const groupBuilder = new GroupBuilder(settingsManager, page);
 
-        this._createPreferenceGroups(groupBuilder);
+        this._createPreferenceGroups(groupBuilder, settingsManager);
+
+        let cleanedUp = false;
+        window.connect('close-request', () => {
+            if (!cleanedUp) {
+                settingsManager.destroy();
+                cleanedUp = true;
+            }
+
+            return false;
+        });
 
         window.add(page);
         window.show();
@@ -456,8 +481,8 @@ export default class KeyboardInformerPreferences extends ExtensionPreferences {
         console.debug(`${LOG_TAG} Preferences window initialized`);
     }
 
-    _createPreferenceGroups(groupBuilder) {
-        const symbolPresets = getSymbolPresets(this.settingsManager);
+    _createPreferenceGroups(groupBuilder, settingsManager) {
+        const symbolPresets = getSymbolPresets(settingsManager);
 
         groupBuilder.createGroup(
             _('Symbols for modifier keys'),
