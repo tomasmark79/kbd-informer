@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
 <schema id="org.gnome.shell.extensions.kbd-informer" path="/org/gnome/shell/extensions/kbd-informer/">
+<key name="keep-indicator-leftmost" type="b">
+<default>false</default>
+<summary>Keep the indicator leftmost</summary>
+<description>Keep the keyboard indicator at the far left of the status indicators in the top panel.</description>
+</key>
 <key name="shift-symbol" type="s">
 <default>'⇧'</default>
 <summary>Shift</summary>

@@ -484,12 +484,43 @@ export default class KeyboardInformerPreferences extends ExtensionPreferences {
     _createPreferenceGroups(groupBuilder, settingsManager) {
         const symbolPresets = getSymbolPresets(settingsManager);
 
+        this._createPanelGroup(groupBuilder.page, settingsManager);
+
         groupBuilder.createGroup(
             _('Symbols for modifier keys'),
             _('Sets the symbols displayed for modifier keys when they are pressed.'),
             CONFIG_KEYS.modifiers,
             symbolPresets.modifiers.get(_('Symbols'))
         );
+    }
+
+    _createPanelGroup(page, settingsManager) {
+        const group = new Adw.PreferencesGroup({
+            title: _('Panel'),
+            description: _('Controls the position of the keyboard indicator in the top panel.'),
+        });
+        const row = new Adw.ActionRow({
+            title: _('Keep indicator at the far left'),
+            subtitle: _('Prevents other status icons from appearing to the left of the keyboard indicator.'),
+        });
+        const toggle = new Gtk.Switch({
+            active: settingsManager._settings.get_boolean('keep-indicator-leftmost'),
+            valign: Gtk.Align.CENTER,
+        });
+
+        toggle.connect('notify::active', () => {
+            settingsManager._settings.set_boolean('keep-indicator-leftmost', toggle.active);
+        });
+        settingsManager.connect('changed::keep-indicator-leftmost', () => {
+            const active = settingsManager._settings.get_boolean('keep-indicator-leftmost');
+            if (toggle.active !== active)
+                toggle.active = active;
+        });
+
+        row.add_suffix(toggle);
+        row.activatable_widget = toggle;
+        group.add(row);
+        page.add(group);
     }
 }
 

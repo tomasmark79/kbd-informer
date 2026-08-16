@@ -87,6 +87,7 @@ class SettingsManager {
         this.symbols = {
             modifiers: []
         };
+        this.keepIndicatorLeftmost = false;
     }
 
     initialize() {
@@ -108,6 +109,7 @@ class SettingsManager {
             return;
         }
 
+        this.keepIndicatorLeftmost = this._settings.get_boolean('keep-indicator-leftmost');
         this.symbols.modifiers = [
             [MODIFIER_MASKS.SHIFT, this._settings.get_string('shift-symbol')],
             [MODIFIER_MASKS.LOCK, this._settings.get_string('caps-symbol')],
@@ -344,9 +346,11 @@ class PanelIndicator {
     constructor() {
         this._indicator = null;
         this._label = null;
+        this._keepLeftmost = false;
     }
 
-    initialize() {
+    initialize(keepLeftmost) {
+        this._keepLeftmost = keepLeftmost;
         this._indicator = new St.Bin({
             style_class: 'panel-button kbd-indicator',
             reactive: false,
@@ -366,6 +370,21 @@ class PanelIndicator {
 
         this._indicator.set_child(this._label);
         Main.panel._rightBox.insert_child_at_index(this._indicator, 0);
+        this.ensurePosition();
+    }
+
+    setKeepLeftmost(keepLeftmost) {
+        this._keepLeftmost = keepLeftmost;
+        this.ensurePosition();
+    }
+
+    ensurePosition() {
+        if (!this._keepLeftmost || !this._indicator)
+            return;
+
+        const rightBox = Main.panel._rightBox;
+        if (rightBox.get_child_at_index(0) !== this._indicator)
+            rightBox.set_child_at_index(this._indicator, 0);
     }
 
     updateText(text) {
@@ -429,9 +448,12 @@ export default class KeyboardModifiersStatusExtension extends Extension {
         this._inputManager = new InputDeviceManager();
         this._settingsManager.onSettingsChanged = () => {
             this._stateTracker.previousState = null; // Force refresh
+            this._panelIndicator.setKeepLeftmost(
+                this._settingsManager.keepIndicatorLeftmost
+            );
         };
         this._settingsManager.initialize();
-        this._panelIndicator.initialize();
+        this._panelIndicator.initialize(this._settingsManager.keepIndicatorLeftmost);
         this._inputManager.initialize();
         this._updateTimeoutId = GLib.timeout_add(
             GLib.PRIORITY_DEFAULT,
@@ -472,6 +494,8 @@ export default class KeyboardModifiersStatusExtension extends Extension {
     }
 
     _onUpdate() {
+        this._panelIndicator.ensurePosition();
+
         const currentState = this._inputManager.getCurrentModifierState();
         this._stateTracker.updateState(currentState);
 

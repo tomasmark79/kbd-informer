@@ -14,6 +14,7 @@ A GNOME Shell extension that displays keyboard modifier keys in the top panel an
 ## Features
 
 - Shows active modifier keys in the top panel
+- Optionally keeps the keyboard indicator at the far left of the status icons
 - OSD notifications for Caps Lock, Num Lock, Scroll Lock changes
 - Customizable symbols for all modifier keys
 - Multi-monitor support
