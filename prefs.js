@@ -497,29 +497,52 @@ export default class KeyboardInformerPreferences extends ExtensionPreferences {
     _createPanelGroup(page, settingsManager) {
         const group = new Adw.PreferencesGroup({
             title: _('Panel'),
-            description: _('Controls the position of the keyboard indicator in the top panel.'),
+            description: _('Controls the keyboard indicator in the top panel.'),
         });
-        const row = new Adw.ActionRow({
+        const visibilityRow = new Adw.ActionRow({
+            title: _('Show indicator in the top panel'),
+            subtitle: _('OSD notifications remain enabled when the indicator is hidden.'),
+        });
+        const visibilityToggle = new Gtk.Switch({
+            active: settingsManager._settings.get_boolean('show-panel-indicator'),
+            valign: Gtk.Align.CENTER,
+        });
+        const positionRow = new Adw.ActionRow({
             title: _('Keep indicator at the far left'),
             subtitle: _('Prevents other status icons from appearing to the left of the keyboard indicator.'),
         });
-        const toggle = new Gtk.Switch({
+        const positionToggle = new Gtk.Switch({
             active: settingsManager._settings.get_boolean('keep-indicator-leftmost'),
             valign: Gtk.Align.CENTER,
         });
 
-        toggle.connect('notify::active', () => {
-            settingsManager._settings.set_boolean('keep-indicator-leftmost', toggle.active);
+        visibilityToggle.connect('notify::active', () => {
+            settingsManager._settings.set_boolean('show-panel-indicator', visibilityToggle.active);
+            positionRow.sensitive = visibilityToggle.active;
+        });
+        settingsManager.connect('changed::show-panel-indicator', () => {
+            const active = settingsManager._settings.get_boolean('show-panel-indicator');
+            if (visibilityToggle.active !== active)
+                visibilityToggle.active = active;
+            positionRow.sensitive = active;
+        });
+
+        positionToggle.connect('notify::active', () => {
+            settingsManager._settings.set_boolean('keep-indicator-leftmost', positionToggle.active);
         });
         settingsManager.connect('changed::keep-indicator-leftmost', () => {
             const active = settingsManager._settings.get_boolean('keep-indicator-leftmost');
-            if (toggle.active !== active)
-                toggle.active = active;
+            if (positionToggle.active !== active)
+                positionToggle.active = active;
         });
 
-        row.add_suffix(toggle);
-        row.activatable_widget = toggle;
-        group.add(row);
+        visibilityRow.add_suffix(visibilityToggle);
+        visibilityRow.activatable_widget = visibilityToggle;
+        positionRow.add_suffix(positionToggle);
+        positionRow.activatable_widget = positionToggle;
+        positionRow.sensitive = visibilityToggle.active;
+        group.add(visibilityRow);
+        group.add(positionRow);
         page.add(group);
     }
 }

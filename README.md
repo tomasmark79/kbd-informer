@@ -8,7 +8,10 @@ A GNOME Shell extension that displays keyboard modifier keys in the top panel an
 
 > 🌱 **Help Keep This Going**
 > Your support makes a real difference. If you value my work and want to help me continue creating, please consider making a donation.  
-> 💙 **Donate here:** [https://paypal.me/TomasMark](https://paypal.me/TomasMark)
+> ☕ **Buy Me a Coffee:** [https://buymeacoffee.com/tomasmark](https://buymeacoffee.com/tomasmark)
+>
+> 💙 **PayPal:** [https://paypal.me/TomasMark](https://paypal.me/TomasMark)
+>
 > Every contribution is truly appreciated ✨
 
 ## Features

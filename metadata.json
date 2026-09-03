@@ -13,6 +13,7 @@
 	"url": "https://github.com/tomasmark79/kbd-informer",
 	"settings-schema": "org.gnome.shell.extensions.kbd-informer",
 	"donations": {
+		"buymeacoffee": "tomasmark",
 		"paypal": "TomasMark"
 	}
 }

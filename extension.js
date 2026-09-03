@@ -87,6 +87,7 @@ class SettingsManager {
         this.symbols = {
             modifiers: []
         };
+        this.showPanelIndicator = true;
         this.keepIndicatorLeftmost = false;
     }
 
@@ -109,6 +110,7 @@ class SettingsManager {
             return;
         }
 
+        this.showPanelIndicator = this._settings.get_boolean('show-panel-indicator');
         this.keepIndicatorLeftmost = this._settings.get_boolean('keep-indicator-leftmost');
         this.symbols.modifiers = [
             [MODIFIER_MASKS.SHIFT, this._settings.get_string('shift-symbol')],
@@ -346,10 +348,12 @@ class PanelIndicator {
     constructor() {
         this._indicator = null;
         this._label = null;
+        this._visible = true;
         this._keepLeftmost = false;
     }
 
-    initialize(keepLeftmost) {
+    initialize(visible, keepLeftmost) {
+        this._visible = visible;
         this._keepLeftmost = keepLeftmost;
         this._indicator = new St.Bin({
             style_class: 'panel-button kbd-indicator',
@@ -370,7 +374,14 @@ class PanelIndicator {
 
         this._indicator.set_child(this._label);
         Main.panel._rightBox.insert_child_at_index(this._indicator, 0);
+        this._indicator.visible = this._visible;
         this.ensurePosition();
+    }
+
+    setVisible(visible) {
+        this._visible = visible;
+        if (this._indicator)
+            this._indicator.visible = visible;
     }
 
     setKeepLeftmost(keepLeftmost) {
@@ -379,7 +390,7 @@ class PanelIndicator {
     }
 
     ensurePosition() {
-        if (!this._keepLeftmost || !this._indicator)
+        if (!this._visible || !this._keepLeftmost || !this._indicator)
             return;
 
         const rightBox = Main.panel._rightBox;
@@ -388,7 +399,7 @@ class PanelIndicator {
     }
 
     updateText(text) {
-        if (this._label) {
+        if (this._visible && this._label) {
             this._label.text = text;
         }
     }
@@ -448,12 +459,18 @@ export default class KeyboardModifiersStatusExtension extends Extension {
         this._inputManager = new InputDeviceManager();
         this._settingsManager.onSettingsChanged = () => {
             this._stateTracker.previousState = null; // Force refresh
+            this._panelIndicator.setVisible(
+                this._settingsManager.showPanelIndicator
+            );
             this._panelIndicator.setKeepLeftmost(
                 this._settingsManager.keepIndicatorLeftmost
             );
         };
         this._settingsManager.initialize();
-        this._panelIndicator.initialize(this._settingsManager.keepIndicatorLeftmost);
+        this._panelIndicator.initialize(
+            this._settingsManager.showPanelIndicator,
+            this._settingsManager.keepIndicatorLeftmost
+        );
         this._inputManager.initialize();
         this._updateTimeoutId = GLib.timeout_add(
             GLib.PRIORITY_DEFAULT,
