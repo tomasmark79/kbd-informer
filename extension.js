@@ -399,7 +399,9 @@ class PanelIndicator {
     }
 
     updateText(text) {
-        if (this._visible && this._label) {
+        // Keep the text current while hidden so it is correct immediately
+        // when the panel indicator is enabled again.
+        if (this._label) {
             this._label.text = text;
         }
     }
