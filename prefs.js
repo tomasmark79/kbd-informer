@@ -24,8 +24,8 @@ const LOG_TAG = 'KBD-Informer-Prefs:';
 
 const CONFIG_KEYS = {
     modifiers: [
-        'shift-symbol', 'caps-symbol', 'control-symbol', 'alt-symbol',
-        'num-symbol', 'scroll-symbol', 'super-symbol', 'altgr-symbol'
+        'caps-symbol', 'shift-symbol', 'control-symbol', 'super-symbol',
+        'alt-symbol', 'altgr-symbol', 'scroll-symbol', 'num-symbol'
     ]
 };
 
@@ -35,7 +35,7 @@ function getSymbolPresets(settingsManager = null) {
     if (!SYMBOL_PRESETS) {
         SYMBOL_PRESETS = {
             modifiers: new Map([
-                [_('Symbols'), ['shift', 'caps', 'ctrl', 'alt', 'num', 'scroll', 'super', 'altgr']],
+                [_('Symbols'), ['caps', 'shift', 'ctrl', 'super', 'alt', 'altgr', 'scroll', 'num']],
             ])
         };
     }

@@ -1,11 +1,18 @@
 /* Uses standard GNOME Shell classes for consistent appearance */
 
-/* Panel button container - for better centering */
 .kbd-indicator {
-    /* Flexbox for perfect centering */
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    /* Match the padding of GNOME's regular panel buttons. */
+    padding-left: 6px;
+    padding-right: 6px;
 }
 
-/* Use GNOME Shell theme for label typography */
+.kbd-indicator-items {
+    spacing: 0;
+}
+
+.kbd-indicator-item {
+    /* Give every modifier a stable, icon-sized slot. Longer custom labels
+       may still grow naturally instead of being clipped. */
+    min-width: 2.5em;
+    text-align: center;
+}

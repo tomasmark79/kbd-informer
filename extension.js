@@ -115,14 +115,14 @@ class SettingsManager {
         this.showOsdNotifications = this._settings.get_boolean('show-osd-notifications');
         this.keepIndicatorLeftmost = this._settings.get_boolean('keep-indicator-leftmost');
         this.symbols.modifiers = [
-            [MODIFIER_MASKS.SHIFT, this._settings.get_string('shift-symbol')],
             [MODIFIER_MASKS.LOCK, this._settings.get_string('caps-symbol')],
+            [MODIFIER_MASKS.SHIFT, this._settings.get_string('shift-symbol')],
             [MODIFIER_MASKS.CONTROL, this._settings.get_string('control-symbol')],
-            [MODIFIER_MASKS.MOD1, this._settings.get_string('alt-symbol')],
-            [MODIFIER_MASKS.MOD2, this._settings.get_string('num-symbol')],
-            [MODIFIER_MASKS.MOD3, this._settings.get_string('scroll-symbol')],
             [MODIFIER_MASKS.MOD4, this._settings.get_string('super-symbol')],
+            [MODIFIER_MASKS.MOD1, this._settings.get_string('alt-symbol')],
             [MODIFIER_MASKS.MOD5, this._settings.get_string('altgr-symbol')],
+            [MODIFIER_MASKS.MOD3, this._settings.get_string('scroll-symbol')],
+            [MODIFIER_MASKS.MOD2, this._settings.get_string('num-symbol')],
         ];
     }
 
@@ -349,7 +349,8 @@ class ModifiersOSDManager {
 class PanelIndicator {
     constructor() {
         this._indicator = null;
-        this._label = null;
+        this._itemsBox = null;
+        this._symbolsKey = '';
         this._visible = true;
         this._keepLeftmost = false;
     }
@@ -368,13 +369,12 @@ class PanelIndicator {
             track_hover: false
         });
 
-        this._label = new St.Label({
-            style_class: 'panel-status-menu-label state-label',
-            text: '',
-            y_align: Clutter.ActorAlign.CENTER
+        this._itemsBox = new St.BoxLayout({
+            style_class: 'kbd-indicator-items',
+            y_align: Clutter.ActorAlign.CENTER,
         });
 
-        this._indicator.set_child(this._label);
+        this._indicator.set_child(this._itemsBox);
         Main.panel._rightBox.insert_child_at_index(this._indicator, 0);
         this._indicator.visible = this._visible;
         this.ensurePosition();
@@ -400,11 +400,23 @@ class PanelIndicator {
             rightBox.set_child_at_index(this._indicator, 0);
     }
 
-    updateText(text) {
-        // Keep the text current while hidden so it is correct immediately
+    updateSymbols(symbols) {
+        // Keep the symbols current while hidden so they are correct immediately
         // when the panel indicator is enabled again.
-        if (this._label) {
-            this._label.text = text;
+        const symbolsKey = JSON.stringify(symbols);
+        if (!this._itemsBox || this._symbolsKey === symbolsKey)
+            return;
+
+        this._symbolsKey = symbolsKey;
+        this._itemsBox.destroy_all_children();
+
+        for (const symbol of symbols.filter(Boolean)) {
+            this._itemsBox.add_child(new St.Label({
+                style_class: 'panel-status-menu-label state-label kbd-indicator-item',
+                text: symbol,
+                y_align: Clutter.ActorAlign.CENTER,
+                x_align: Clutter.ActorAlign.CENTER,
+            }));
         }
     }
 
@@ -414,7 +426,8 @@ class PanelIndicator {
             this._indicator.destroy_all_children();
             this._indicator.destroy();
             this._indicator = null;
-            this._label = null;
+            this._itemsBox = null;
+            this._symbolsKey = '';
         }
     }
 }
@@ -569,9 +582,7 @@ export default class KeyboardModifiersStatusExtension extends Extension {
             }
         }
 
-        const indicatorText = activeModifiers.join(' ');
-
-        this._panelIndicator.updateText(indicatorText);
+        this._panelIndicator.updateSymbols(activeModifiers);
     }
 
     _showNotification(title, message) {
