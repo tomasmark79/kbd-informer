@@ -1,18 +1,11 @@
 
 # Keyboard Informer
 
+[![PayPal](https://img.shields.io/badge/PayPal-Donate-blue?logo=paypal)](https://paypal.me/TomasMark)
+
 A GNOME Shell extension that displays keyboard modifier keys in the top panel and shows notifications when lock keys change state.
 
-![GNOME Shell](https://img.shields.io/badge/GNOME%20Shell-45%2B-blue)
-![License](https://img.shields.io/badge/License-GPL%20v3-green)
-
-> 🌱 **Help Keep This Going**
-> Your support makes a real difference. If you value my work and want to help me continue creating, please consider making a donation.  
-> ☕ **Buy Me a Coffee:** [https://buymeacoffee.com/tomasmark](https://buymeacoffee.com/tomasmark)
->
-> 💙 **PayPal:** [https://paypal.me/TomasMark](https://paypal.me/TomasMark)
->
-> Every contribution is truly appreciated ✨
+![GNOME Shell](https://img.shields.io/badge/GNOME%20Shell-45%2B-blue)  ![License](https://img.shields.io/badge/License-GPL%20v3-green)
 
 ## Features
 
