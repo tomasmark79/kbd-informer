@@ -485,6 +485,7 @@ export default class KeyboardInformerPreferences extends ExtensionPreferences {
         const symbolPresets = getSymbolPresets(settingsManager);
 
         this._createPanelGroup(groupBuilder.page, settingsManager);
+        this._createOsdGroup(groupBuilder.page, settingsManager);
 
         groupBuilder.createGroup(
             _('Symbols for modifier keys'),
@@ -501,7 +502,7 @@ export default class KeyboardInformerPreferences extends ExtensionPreferences {
         });
         const visibilityRow = new Adw.ActionRow({
             title: _('Show indicator in the top panel'),
-            subtitle: _('OSD notifications remain enabled when the indicator is hidden.'),
+            subtitle: _('Shows active keyboard modifiers in the top panel.'),
         });
         const visibilityToggle = new Gtk.Switch({
             active: settingsManager._settings.get_boolean('show-panel-indicator'),
@@ -543,6 +544,35 @@ export default class KeyboardInformerPreferences extends ExtensionPreferences {
         positionRow.sensitive = visibilityToggle.active;
         group.add(visibilityRow);
         group.add(positionRow);
+        page.add(group);
+    }
+
+    _createOsdGroup(page, settingsManager) {
+        const group = new Adw.PreferencesGroup({
+            title: _('OSD'),
+            description: _('Controls notifications displayed on screen.'),
+        });
+        const row = new Adw.ActionRow({
+            title: _('Show OSD notifications'),
+            subtitle: _('Shows notifications when Caps Lock, Num Lock, or Scroll Lock changes state.'),
+        });
+        const toggle = new Gtk.Switch({
+            active: settingsManager._settings.get_boolean('show-osd-notifications'),
+            valign: Gtk.Align.CENTER,
+        });
+
+        toggle.connect('notify::active', () => {
+            settingsManager._settings.set_boolean('show-osd-notifications', toggle.active);
+        });
+        settingsManager.connect('changed::show-osd-notifications', () => {
+            const active = settingsManager._settings.get_boolean('show-osd-notifications');
+            if (toggle.active !== active)
+                toggle.active = active;
+        });
+
+        row.add_suffix(toggle);
+        row.activatable_widget = toggle;
+        group.add(row);
         page.add(group);
     }
 }

@@ -88,6 +88,7 @@ class SettingsManager {
             modifiers: []
         };
         this.showPanelIndicator = true;
+        this.showOsdNotifications = true;
         this.keepIndicatorLeftmost = false;
     }
 
@@ -111,6 +112,7 @@ class SettingsManager {
         }
 
         this.showPanelIndicator = this._settings.get_boolean('show-panel-indicator');
+        this.showOsdNotifications = this._settings.get_boolean('show-osd-notifications');
         this.keepIndicatorLeftmost = this._settings.get_boolean('keep-indicator-leftmost');
         this.symbols.modifiers = [
             [MODIFIER_MASKS.SHIFT, this._settings.get_string('shift-symbol')],
@@ -467,6 +469,8 @@ export default class KeyboardModifiersStatusExtension extends Extension {
             this._panelIndicator.setKeepLeftmost(
                 this._settingsManager.keepIndicatorLeftmost
             );
+            if (!this._settingsManager.showOsdNotifications)
+                this._osdManager.hideAll();
         };
         this._settingsManager.initialize();
         this._panelIndicator.initialize(
@@ -571,6 +575,9 @@ export default class KeyboardModifiersStatusExtension extends Extension {
     }
 
     _showNotification(title, message) {
+        if (!this._settingsManager.showOsdNotifications)
+            return;
+
         try {
             this._osdManager.show(title, message);
         } catch (error) {

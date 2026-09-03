@@ -4,7 +4,12 @@
 <key name="show-panel-indicator" type="b">
 <default>true</default>
 <summary>Show indicator in the top panel</summary>
-<description>Show active keyboard modifiers in the top panel. OSD notifications remain enabled when the indicator is hidden.</description>
+<description>Show active keyboard modifiers in the top panel. This setting does not affect OSD notifications.</description>
+</key>
+<key name="show-osd-notifications" type="b">
+<default>true</default>
+<summary>Show OSD notifications</summary>
+<description>Show OSD notifications when Caps Lock, Num Lock, or Scroll Lock changes state.</description>
 </key>
 <key name="keep-indicator-leftmost" type="b">
 <default>false</default>
