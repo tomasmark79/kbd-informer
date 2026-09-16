@@ -17,18 +17,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
-import GObject from 'gi://GObject';
+import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import * as Config from 'resource:///org/gnome/shell/misc/config.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import * as Layout from 'resource:///org/gnome/shell/ui/layout.js';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const LOG_TAG = 'KMS-Ext:';
 const UPDATE_INTERVAL_MS = 200;
-const OSD_HIDE_TIMEOUT_MS = 1500;
-const OSD_FADE_TIME_MS = 100;
-const SHOW_OSD_ICON = true; // Set to true to show icon in OSD
 
 console.debug(`${LOG_TAG} Shell version: ${Config.PACKAGE_VERSION}`);
 
@@ -132,217 +128,6 @@ class SettingsManager {
             this._settingsChangedId = null;
         }
         this._settings = null;
-    }
-}
-
-const ModifiersOSD = GObject.registerClass(
-    class ModifiersOSD extends Clutter.Actor {
-        _init(monitorIndex) {
-            super._init({
-                x_expand: true,
-                y_expand: true,
-                x_align: Clutter.ActorAlign.CENTER,
-                y_align: Clutter.ActorAlign.END,
-            });
-
-            this._monitorIndex = monitorIndex;
-            this._hideTimeoutId = 0;
-
-            this._setupUI();
-            this._reset();
-            Main.uiGroup.add_child(this);
-        }
-
-        _setupUI() {
-            const constraint = new Layout.MonitorConstraint({ index: this._monitorIndex });
-            this.add_constraint(constraint);
-
-            this._container = new St.BoxLayout({
-                style_class: 'osd-window',
-                style: 'margin-bottom: 8em;',
-                x_align: Clutter.ActorAlign.CENTER,
-                y_align: Clutter.ActorAlign.CENTER,
-                x_expand: true,
-                vertical: !SHOW_OSD_ICON, // Vertical layout when no icon, horizontal when icon is shown
-            });
-            this.add_child(this._container);
-
-            if (SHOW_OSD_ICON) {
-                this._icon = new St.Icon({
-                    icon_name: 'input-keyboard-symbolic',
-                    icon_size: 24,
-                    y_expand: true,
-                });
-                this._container.add_child(this._icon);
-            }
-
-            // Use vertical: true for Gnome 46+ compatibility (Ubuntu 24.04)
-            // Falls back gracefully if orientation property is still supported
-            this._textContainer = new St.BoxLayout({
-                vertical: true,
-                y_align: Clutter.ActorAlign.CENTER,
-                x_align: Clutter.ActorAlign.CENTER,
-                x_expand: true,
-            });
-            this._container.add_child(this._textContainer);
-
-            this._titleLabel = new St.Label({
-                style: 'font-size: 1.1em; text-align: center;',
-                x_align: Clutter.ActorAlign.CENTER,
-                y_align: Clutter.ActorAlign.CENTER,
-                x_expand: true,
-            });
-            this._textContainer.add_child(this._titleLabel);
-
-            this._statusLabel = new St.Label({
-                style: 'font-size: 1.0em; text-align: center;',
-                x_align: Clutter.ActorAlign.CENTER,
-                y_align: Clutter.ActorAlign.CENTER,
-                x_expand: true,
-            });
-            this._textContainer.add_child(this._statusLabel);
-        }
-
-        show(title, status) {
-            this._titleLabel.text = title;
-            this._statusLabel.text = status;
-
-            if (!this.visible) {
-                this._showWithAnimation();
-            }
-            this._scheduleHide();
-        }
-
-        _showWithAnimation() {
-            // Disable unredirect if available (not present in Gnome 46+)
-            if (global.compositor && typeof global.compositor.disable_unredirect === 'function') {
-                global.compositor.disable_unredirect();
-            }
-
-            super.show();
-            this.opacity = 0;
-            this.get_parent().set_child_above_sibling(this, null);
-
-            this.ease({
-                opacity: 255,
-                duration: OSD_FADE_TIME_MS,
-                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-            });
-        }
-
-        _scheduleHide() {
-            this._clearHideTimeout();
-            this._hideTimeoutId = GLib.timeout_add(
-                GLib.PRIORITY_DEFAULT,
-                OSD_HIDE_TIMEOUT_MS,
-                this._hide.bind(this)
-            );
-            GLib.Source.set_name_by_id(this._hideTimeoutId, '[gnome-shell] ModifiersOSD._hide');
-        }
-
-        cancel() {
-            if (this._hideTimeoutId) {
-                this._clearHideTimeout();
-                this._hide();
-            }
-        }
-
-        _hide() {
-            this._hideTimeoutId = 0;
-            this.ease({
-                opacity: 0,
-                duration: OSD_FADE_TIME_MS,
-                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-                onComplete: () => {
-                    this._reset();
-                    // Enable unredirect if available (not present in Gnome 46+)
-                    if (global.compositor && typeof global.compositor.enable_unredirect === 'function') {
-                        global.compositor.enable_unredirect();
-                    }
-                },
-            });
-            return GLib.SOURCE_REMOVE;
-        }
-
-        _reset() {
-            super.hide();
-            this._titleLabel.text = '';
-            this._statusLabel.text = '';
-        }
-
-        _clearHideTimeout() {
-            if (this._hideTimeoutId) {
-                GLib.source_remove(this._hideTimeoutId);
-                this._hideTimeoutId = 0;
-            }
-        }
-
-        destroy() {
-            this._clearHideTimeout();
-            super.destroy();
-        }
-    });
-
-
-class ModifiersOSDManager {
-    constructor() {
-        this._osdWindows = [];
-        this._monitorsChangedId = Main.layoutManager.connect(
-            'monitors-changed',
-            this._onMonitorsChanged.bind(this)
-        );
-        this._onMonitorsChanged();
-    }
-
-    _onMonitorsChanged() {
-        const monitorCount = Main.layoutManager.monitors.length;
-
-        // Create OSD windows for new monitors
-        for (let i = 0; i < monitorCount; i++) {
-            if (!this._osdWindows[i]) {
-                this._osdWindows[i] = new ModifiersOSD(i);
-            }
-        }
-
-        // Remove OSD windows for monitors that no longer exist
-        for (let i = monitorCount; i < this._osdWindows.length; i++) {
-            if (this._osdWindows[i]) {
-                this._osdWindows[i].destroy();
-                this._osdWindows[i] = null;
-            }
-        }
-
-        this._osdWindows.length = monitorCount;
-    }
-
-    show(title, status) {
-        this._osdWindows.forEach(osd => {
-            if (osd) {
-                osd.show(title, status);
-            }
-        });
-    }
-
-    hideAll() {
-        this._osdWindows.forEach(osd => {
-            if (osd) {
-                osd.cancel();
-            }
-        });
-    }
-
-    destroy() {
-        if (this._monitorsChangedId) {
-            Main.layoutManager.disconnect(this._monitorsChangedId);
-            this._monitorsChangedId = null;
-        }
-
-        this._osdWindows.forEach(osd => {
-            if (osd) {
-                osd.destroy();
-            }
-        });
-        this._osdWindows = [];
     }
 }
 
@@ -471,7 +256,7 @@ export default class KeyboardModifiersStatusExtension extends Extension {
 
         this._stateTracker = new ModifierStateTracker();
         this._settingsManager = new SettingsManager(this);
-        this._osdManager = new ModifiersOSDManager();
+        this._osdIcon = new Gio.ThemedIcon({name: 'input-keyboard-symbolic'});
         this._panelIndicator = new PanelIndicator();
         this._inputManager = new InputDeviceManager();
         this._settingsManager.onSettingsChanged = () => {
@@ -482,8 +267,6 @@ export default class KeyboardModifiersStatusExtension extends Extension {
             this._panelIndicator.setKeepLeftmost(
                 this._settingsManager.keepIndicatorLeftmost
             );
-            if (!this._settingsManager.showOsdNotifications)
-                this._osdManager.hideAll();
         };
         this._settingsManager.initialize();
         this._panelIndicator.initialize(
@@ -511,7 +294,6 @@ export default class KeyboardModifiersStatusExtension extends Extension {
         [
             this._inputManager,
             this._panelIndicator,
-            this._osdManager,
             this._settingsManager
         ].forEach(component => {
             if (component) {
@@ -522,7 +304,8 @@ export default class KeyboardModifiersStatusExtension extends Extension {
 
         this._stateTracker = null;
         this._settingsManager = null;
-        this._osdManager = null;
+        // Shell owns the shared OSD and its hide timer; leave it to expire.
+        this._osdIcon = null;
         this._panelIndicator = null;
         this._inputManager = null;
 
@@ -585,12 +368,18 @@ export default class KeyboardModifiersStatusExtension extends Extension {
         this._panelIndicator.updateSymbols(activeModifiers);
     }
 
-    _showNotification(title, message) {
+    _showNotification(status, keyName) {
         if (!this._settingsManager.showOsdNotifications)
             return;
 
         try {
-            this._osdManager.show(title, message);
+            const label = `${keyName} Lock: ${status}`;
+            // GNOME 50+ uses showAll(); older versions use monitor index -1.
+            // A null level hides the volume/brightness bar.
+            if (typeof Main.osdWindowManager.showAll === 'function')
+                Main.osdWindowManager.showAll(this._osdIcon, label, null);
+            else
+                Main.osdWindowManager.show(-1, this._osdIcon, label, null);
         } catch (error) {
             console.error(`${LOG_TAG} Error showing OSD notification: ${error}`);
         }
