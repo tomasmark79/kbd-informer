@@ -1,195 +1,168 @@
 #!/usr/bin/env bash
+# Copyright (C) 2025–2026 Tomáš Mark
+# SPDX-License-Identifier: GPL-3.0-or-later
+set -euo pipefail
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
-
-# Copyright (C) 2025 Tomáš Mark
-
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-set -e
-
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
-
-EXTENSION_UUID="kbd-informer@digitalspace.name"
-ZIP_NAME="${EXTENSION_UUID}.zip"
-
-function RequireCommand()
-{
-    if ! command -v "$1" >/dev/null 2>&1; then
-        echo -e "${RED}Error: '$1' not found.${NC}"
-        if [[ -n "$2" ]]; then
-            echo -e "${YELLOW}$2${NC}"
-        fi
-        exit 1
-    fi
-}
-
-function Help()
-{
-    echo "Usage: $(basename $0) [-bilr]"
-    echo "  -b  build the extension"
-    echo "  -i  install the extension"
-    echo "  -l  log out gnome session afterwards"
-    echo "  -r  build release zip with validation"
-}
-
-build=""
-install=""
-logout=""
-release=""
-
-while getopts ":bilr" option; do
-    case $option in
-    b)
-        build=1;;
-    i)
-        install=1;;
-    l)
-        logout=1;;
-    r)
-        release=1;;
-    *)
-        Help
-        exit
-        ;;
+# Add only extension-specific runtime directories or files here.
+extra_sources=()
+# For existing projects, preserve the contents of the previous distribution ZIP.
+package_license=false
+package_compiled_schemas=false
+install_extension=false
+check_only=false
+reference_zip=''
+while (( $# )); do
+    argument=$1
+    case "$argument" in
+        -b|--build|-r|--release) ;;
+        -i|--install|-bi|-ri) install_extension=true ;;
+        --check) check_only=true ;;
+        --compare-zip)
+            (( $# >= 2 )) || { echo 'Missing path after --compare-zip.' >&2; exit 1; }
+            reference_zip=$2
+            [[ -f "$reference_zip" ]] || { echo "Reference ZIP does not exist: $reference_zip" >&2; exit 1; }
+            shift ;;
+        -h|--help)
+            echo 'Usage: ./build.sh [-b|-r] [-i|--install] [--check] [--compare-zip path]'
+            echo 'With no options, validate sources and create dist/<uuid>.zip.'
+            echo '-i always builds the current sources and installs the ZIP; --check only validates.'
+            echo '--compare-zip checks file paths and contents before any requested installation.'
+            exit 0 ;;
+        *) echo "Unknown option: $argument" >&2; exit 1 ;;
     esac
+    shift
 done
-
-# If no options provided, show help
-if [[ -z "$build" && -z "$install" && -z "$logout" && -z "$release" ]]; then
-    Help
-    exit 0
+if "$check_only" && [[ -n "$reference_zip" ]]; then
+    echo '--compare-zip requires a build and cannot be combined with --check.' >&2; exit 1
 fi
-
-# Build release version with validation
-if [[ $release ]]; then
-    echo -e "${BLUE}GNOME Shell Extension Release Builder${NC}"
-    echo -e "${BLUE}=====================================${NC}"
-    echo
-
-    # Check if we're in the right directory
-    if [[ ! -f "metadata.json" || ! -f "extension.js" ]]; then
-        echo -e "${RED}Error: metadata.json or extension.js not found!${NC}"
-        exit 1
-    fi
-
-    echo -e "${YELLOW}Checking extension files...${NC}"
-
-    # Required files check
-    REQUIRED_FILES=("metadata.json" "extension.js")
-    for file in "${REQUIRED_FILES[@]}"; do
-        if [[ ! -f "$file" ]]; then
-            echo -e "${RED}Error: Required file '$file' not found!${NC}"
-            exit 1
-        fi
-        echo -e "${GREEN}✓${NC} Found required file: $file"
+if "$check_only" && "$install_extension"; then
+    echo '--check cannot be combined with --install.' >&2; exit 1
+fi
+for tool in python3 node; do
+    command -v "$tool" >/dev/null || { echo "Missing command: $tool" >&2; exit 1; }
+done
+[[ -f extension.js ]] || { echo 'Missing extension.js. Use this build.sh inside an extension project.' >&2; exit 1; }
+python3 - <<'PY'
+import json
+from pathlib import Path
+import re
+import xml.etree.ElementTree as ET
+m = json.loads(Path('metadata.json').read_text())
+for key in ('uuid', 'name', 'description', 'shell-version', 'url'):
+    if not m.get(key):
+        raise SystemExit(f'Missing metadata field: {key}')
+if not isinstance(m['uuid'], str) or not re.fullmatch(r'[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+', m['uuid']):
+    raise SystemExit('Invalid UUID.')
+for key in ('name', 'description', 'url'):
+    if not isinstance(m[key], str) or not m[key].strip():
+        raise SystemExit(f'Metadata field {key} must be a non-empty string.')
+from urllib.parse import urlsplit
+url = urlsplit(m['url'])
+if url.scheme not in ('https', 'http') or not url.netloc:
+    raise SystemExit('The project URL must be a valid HTTP(S) URL.')
+if m['uuid'].split('@')[1] == 'gnome.org':
+    raise SystemExit('The gnome.org namespace requires explicit permission from the GNOME Foundation.')
+if not isinstance(m['shell-version'], list) or not all(isinstance(v, str) and v.isdigit() for v in m['shell-version']):
+    raise SystemExit('shell-version must be a list of version number strings.')
+schema_ids = set()
+for filename in Path('schemas').glob('*.gschema.xml'):
+    for schema in ET.parse(filename).getroot().findall('schema'):
+        schema_id = schema.get('id', '')
+        if not schema_id.startswith('org.gnome.shell.extensions.'):
+            raise SystemExit(f'Invalid schema ID prefix: {schema_id}')
+        if filename.name != f'{schema_id}.gschema.xml':
+            raise SystemExit(f'The XML filename does not match the schema ID: {filename}')
+        path = schema.get('path')
+        if path is not None and not path.startswith('/org/gnome/shell/extensions/'):
+            raise SystemExit(f'Invalid schema path prefix: {filename}')
+        schema_ids.add(schema_id)
+if schema_id := m.get('settings-schema'):
+    if schema_id not in schema_ids:
+        raise SystemExit('settings-schema has no matching XML schema.')
+if 'version' in m and (type(m['version']) is not int or m['version'] < 1):
+    raise SystemExit('version must be a positive integer; extensions.gnome.org manages it for GNOME distribution.')
+if list(Path('po').glob('*.po')):
+    domain = m.get('gettext-domain', '')
+    if not isinstance(domain, str) or not re.fullmatch(r'[A-Za-z0-9_.@+-]+', domain):
+        raise SystemExit('Translations require a valid gettext-domain in metadata.')
+PY
+shopt -s nullglob
+sources=(*.js)
+schemas=(schemas/*.gschema.xml)
+translations=(po/*.po)
+for source in "${sources[@]}"; do
+    node --input-type=module --check < "$source"
+done
+if (( ${#schemas[@]} )); then
+    command -v glib-compile-schemas >/dev/null || { echo 'Missing glib-compile-schemas.' >&2; exit 1; }
+    glib-compile-schemas --strict --dry-run schemas
+fi
+if (( ${#translations[@]} )); then
+    command -v msgfmt >/dev/null || { echo 'Missing msgfmt.' >&2; exit 1; }
+    for translation in "${translations[@]}"; do msgfmt --check --output-file=/dev/null "$translation"; done
+fi
+if "$check_only"; then echo 'Validation passed.'; exit 0; fi
+command -v zip >/dev/null || { echo 'Missing zip.' >&2; exit 1; }
+if "$install_extension"; then
+    command -v gnome-extensions >/dev/null || { echo 'Missing gnome-extensions.' >&2; exit 1; }
+fi
+uuid=$(python3 -c 'import json; print(json.load(open("metadata.json"))["uuid"])')
+stage=$(mktemp -d)
+trap 'rm -rf -- "$stage"' EXIT
+cp -- "${sources[@]}" metadata.json "$stage/"
+for optional in stylesheet.css; do
+    if [[ -f "$optional" ]]; then cp -- "$optional" "$stage/"; fi
+done
+if "$package_license" && [[ -f LICENSE ]]; then cp -- LICENSE "$stage/"; fi
+for resource in "${extra_sources[@]}"; do
+    cp -R -- "$resource" "$stage/"
+done
+if (( ${#schemas[@]} )); then
+    mkdir "$stage/schemas"
+    cp -- "${schemas[@]}" "$stage/schemas/"
+    glib-compile-schemas --strict "$stage/schemas"
+    if ! "$package_compiled_schemas"; then rm -- "$stage/schemas/gschemas.compiled"; fi
+fi
+if (( ${#translations[@]} )); then
+    domain=$(python3 -c 'import json; print(json.load(open("metadata.json"))["gettext-domain"])')
+    for translation in "${translations[@]}"; do
+        language=$(basename -- "$translation" .po)
+        destination="$stage/locale/$language/LC_MESSAGES"
+        mkdir -p "$destination"
+        msgfmt --check --output-file="$destination/$domain.mo" "$translation"
     done
-
-    # Validate metadata.json
-    echo -e "${YELLOW}Validating metadata.json...${NC}"
-    if ! python3 -m json.tool metadata.json > /dev/null 2>&1; then
-        echo -e "${RED}Error: metadata.json is not valid JSON!${NC}"
-        exit 1
-    fi
-    echo -e "${GREEN}✓${NC} metadata.json is valid JSON"
-
-    # Validate and compile GSettings schema if present
-    if [[ -d "schemas" ]]; then
-        echo -e "${YELLOW}Compiling GSettings schemas...${NC}"
-        
-        SCHEMA_FILE="schemas/org.gnome.shell.extensions.kbd-informer.gschema.xml"
-        if [[ -f "$SCHEMA_FILE" ]]; then
-            RequireCommand "xmllint" "Install libxml2 (NixOS: nix shell nixpkgs#libxml2)"
-            # Validate schema XML
-            if ! xmllint --noout "$SCHEMA_FILE" 2>/dev/null; then
-                echo -e "${RED}Error: Schema XML is not valid!${NC}"
-                exit 1
-            fi
-            echo -e "${GREEN}✓${NC} Schema XML is valid"
-            
-            # Compile schemas
-            RequireCommand "glib-compile-schemas" "Install glib.dev (NixOS: nix shell nixpkgs#glib.dev)"
-            if ! glib-compile-schemas schemas/; then
-                echo -e "${RED}Error: Failed to compile schemas!${NC}"
-                exit 1
-            fi
-            echo -e "${GREEN}✓${NC} Schemas compiled successfully"
-        fi
-    fi
-
-    # Remove old zip file
-    [[ -f "$ZIP_NAME" ]] && rm "$ZIP_NAME"
-
-    # Create zip file
-    echo -e "${YELLOW}Creating release zip file...${NC}"
-    
-    FILES_TO_ZIP=("extension.js" "metadata.json")
-    [[ -f "prefs.js" ]] && FILES_TO_ZIP+=("prefs.js")
-    [[ -f "stylesheet.css" ]] && FILES_TO_ZIP+=("stylesheet.css")
-    [[ -d "schemas" ]] && FILES_TO_ZIP+=("schemas/")
-
-    zip -r "$ZIP_NAME" "${FILES_TO_ZIP[@]}" \
-        -x "schemas/.git*" -x ".git*" -x "*.po" -x "*.pot" \
-        -x "schemas/gschemas.compiled" \
-        > /dev/null
-
-    echo -e "${GREEN}✓${NC} Release zip created: $ZIP_NAME ($(du -h "$ZIP_NAME" | cut -f1))"
-    echo -e "${GREEN}Ready for submission to extensions.gnome.org${NC}"
 fi
+mkdir -p dist
+(cd "$stage" && zip -qr extension.zip .)
+mv -- "$stage/extension.zip" "dist/$uuid.zip"
+echo "Built: $PWD/dist/$uuid.zip"
+if [[ -n "$reference_zip" ]]; then
+    python3 - "$reference_zip" "dist/$uuid.zip" <<'PYCOMPARE'
+import sys
+import zipfile
 
-# Build standard version
-if [[ $build ]]; then
-    echo "Building extension..."
-    
-    # Compile schemas if present
-    if [[ -d "schemas" ]]; then
-        echo "Compiling schemas..."
-        RequireCommand "glib-compile-schemas" "Install glib.dev (NixOS: nix shell nixpkgs#glib.dev)"
-        glib-compile-schemas schemas/
-    fi
+def contents(path):
+    with zipfile.ZipFile(path) as archive:
+        files = [item.filename for item in archive.infolist() if not item.is_dir()]
+        if len(files) != len(set(files)):
+            raise SystemExit(f'Duplicate files in ZIP: {path}')
+        return {name: archive.read(name) for name in files}
 
-    # Remove old zip
-    rm -f "$ZIP_NAME"
-
-    # Create zip with required files
-    echo "Creating zip file..."
-    zip -r "$ZIP_NAME" \
-        extension.js \
-        metadata.json \
-        prefs.js \
-        stylesheet.css \
-        schemas/ \
-        -x "schemas/.git*" -x ".git*" \
-        -x "schemas/gschemas.compiled" \
-        > /dev/null
-
-    echo "✓ Extension built: $ZIP_NAME"
+old, new = map(contents, sys.argv[1:])
+added = sorted(new.keys() - old.keys())
+removed = sorted(old.keys() - new.keys())
+changed = sorted(name for name in old.keys() & new.keys() if old[name] != new[name])
+for label, names in [('Added', added), ('Removed', removed), ('Changed', changed)]:
+    if names:
+        print(f'{label}: {", ".join(names)}', file=sys.stderr)
+if added or removed or changed:
+    raise SystemExit('ZIP contents differ; installation was not performed.')
+print(f'MATCH: all {len(old)} files have the same paths and contents as the reference ZIP.')
+PYCOMPARE
 fi
-
-if [[ $install ]]; then
-    echo "Installing extension..."
-    gnome-extensions install --force "$ZIP_NAME"
-    echo "✓ Extension installed"
-fi
-
-if [[ $logout ]]; then
-    echo "Logging out..."
-    gnome-session-quit --logout --no-prompt
+if "$install_extension"; then
+    gnome-extensions install --force "dist/$uuid.zip"
+    echo "Installed: $uuid"
+    echo "After a fresh login, enable with: gnome-extensions enable $uuid"
 fi

@@ -1,34 +1,75 @@
-
 # Keyboard Informer
 
-[![PayPal](https://img.shields.io/badge/PayPal-Donate-blue?logo=paypal)](https://paypal.me/TomasMark)
+Shows active keyboard modifiers in the GNOME top panel and native OSD notifications
+when Caps Lock, Num Lock or Scroll Lock changes state. Symbols are configurable;
+the indicator can stay at the far left of the status icons. Supports multiple monitors.
 
-A GNOME Shell extension that displays keyboard modifier keys in the top panel and shows notifications when lock keys change state.
+![OSD notification](screenshot-osd.png)
+![Panel indicator](screenshot-panel.png)
 
-![GNOME Shell](https://img.shields.io/badge/GNOME%20Shell-45%2B-blue)  ![License](https://img.shields.io/badge/License-GPL%20v3-green)
+## Requirements
 
-## Features
-
-- Shows active modifier keys in the top panel
-- Optionally keeps the keyboard indicator at the far left of the status icons
-- Standard GNOME Shell OSD notifications for Caps Lock, Num Lock, Scroll Lock changes
-- Customizable symbols for all modifier keys
-- Multi-monitor support
-
-## Screenshots
-
-![OSD Notification](screenshot-osd.png)
-![Panel Indicator](screenshot-panel.png)  
+Declared GNOME Shell versions: **45–50**, as listed in `metadata.json`.
+Build tools: Bash, Python 3, Node.js (syntax checks), zip and `glib-compile-schemas`.
+Local installation also requires `gnome-extensions`.
 
 ## Installation
 
-### From GNOME Extensions Website
-Install directly from: **https://extensions.gnome.org/extension/8500/keyboard-informer/**
-
-### Manual Installation
+Install from [GNOME Extensions](https://extensions.gnome.org/extension/8500/keyboard-informer/),
+or build and install from source:
 
 ```bash
 git clone https://github.com/tomasmark79/kbd-informer.git
 cd kbd-informer
-./build.sh -ri
+./build.sh --install
 ```
+
+On Wayland, log out and back in when needed to load changed JavaScript, then enable:
+
+```bash
+gnome-extensions enable kbd-informer@digitalspace.name
+```
+
+Installation updates the user copy without enabling the extension or logging you out.
+
+## Usage
+
+Modifier states appear in the top panel; lock key changes trigger GNOME OSD notifications.
+Configure symbols, indicator visibility and position in Preferences:
+
+```bash
+gnome-extensions prefs kbd-informer@digitalspace.name
+```
+
+## Development
+
+```bash
+./build.sh --check
+./build.sh
+```
+
+The output is `dist/kbd-informer@digitalspace.name.zip`. `-b` and `-r` are build aliases;
+`-i` and `-ri` build the current sources and install them.
+
+To confirm the package matches the existing local reference archive:
+
+```bash
+./build.sh --compare-zip kbd-informer@digitalspace.name.zip
+```
+
+This checks every file path and its contents, including metadata. ZIP timestamps and
+compression may differ. The original archive remains available as the reference.
+The package preserves its existing layout without LICENSE or a compiled schema;
+the schema is validated during the build and compiled by GNOME during installation.
+
+For runtime changes, verify modifier states, lock key notifications, preferences,
+multiple monitors and repeated disable/enable in GNOME. Build checks alone do not
+confirm behavior on every declared Shell version.
+
+Report problems in the [issue tracker](https://github.com/tomasmark79/kbd-informer/issues).
+
+## License
+
+Copyright © 2025 Tomáš Mark. [GPL-3.0-or-later](LICENSE).
+
+[GitHub](https://github.com/tomasmark79/kbd-informer) · [Donate via PayPal](https://paypal.me/TomasMark)
