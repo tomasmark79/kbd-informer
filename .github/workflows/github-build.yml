@@ -1,0 +1,95 @@
+name: Latest GitHub build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Serialize updates of the rolling tag and its release assets.
+concurrency:
+  group: github-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes gettext libglib2.0-bin zip
+
+      - name: Validate and build
+        run: ./build.sh
+
+      - name: Prepare release files
+        shell: python
+        run: |
+          import datetime
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          metadata = json.loads(Path('metadata.json').read_text())
+          archive = Path('dist') / f"{metadata['uuid']}.zip"
+          digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+          Path('dist/SHA256SUMS').write_text(f'{digest}  {archive.name}\n')
+          timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds')
+          repository = os.environ['GITHUB_REPOSITORY']
+          commit = os.environ['GITHUB_SHA']
+          shell_versions = ', '.join(metadata['shell-version'])
+          notes = (
+              'Automatically built from the main branch. This rolling release is replaced after each successful build.\n\n'
+              f'Commit: [{commit}](https://github.com/{repository}/commit/{commit})\n\n'
+              f'Built: {timestamp}\n\n'
+              f'Declared GNOME Shell versions: {shell_versions}\n\n'
+              'This build may be newer than the version reviewed on GNOME Extensions. '
+              'The GNOME-managed metadata version is preserved.\n\n'
+              f'Install the attached `{archive.name}`; the source archives are not installation packages.\n'
+          )
+          Path('dist/release-notes.md').write_text(notes)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'archive={archive}\n')
+        id: package
+
+      - name: Publish rolling GitHub build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ARCHIVE: ${{ steps.package.outputs.archive }}
+        run: |
+          # An older queued run must not replace a newer build.
+          head=$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq .object.sha)
+          if [[ "$head" != "$GITHUB_SHA" ]]; then
+            echo 'A newer commit is on main; skipping publication.'
+            exit 0
+          fi
+
+          tag=github-build
+          if gh api "repos/$GH_REPO/git/ref/tags/$tag" --silent; then
+            gh api --method PATCH "repos/$GH_REPO/git/refs/tags/$tag" \
+              -f sha="$GITHUB_SHA" -F force=true --silent
+          else
+            gh api --method POST "repos/$GH_REPO/git/refs" \
+              -f ref="refs/tags/$tag" -f sha="$GITHUB_SHA" --silent
+          fi
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "$ARCHIVE" dist/SHA256SUMS --clobber
+            gh release edit "$tag" --title 'Latest GitHub build' \
+              --notes-file dist/release-notes.md --latest
+          else
+            gh release create "$tag" "$ARCHIVE" dist/SHA256SUMS \
+              --verify-tag --title 'Latest GitHub build' \
+              --notes-file dist/release-notes.md --latest
+          fi

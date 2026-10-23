@@ -15,8 +15,19 @@ Local installation also requires `gnome-extensions`.
 
 ## Installation
 
-Install from [GNOME Extensions](https://extensions.gnome.org/extension/8500/keyboard-informer/),
-or build and install from source:
+Install from [GNOME Extensions](https://extensions.gnome.org/extension/8500/keyboard-informer/)
+or [download the latest GitHub build](https://github.com/tomasmark79/kbd-informer/releases/download/github-build/kbd-informer%40digitalspace.name.zip).
+The GitHub ZIP is built automatically from `main` and may be newer than the version
+reviewed on GNOME Extensions. Its [release page](https://github.com/tomasmark79/kbd-informer/releases/tag/github-build)
+lists the source commit, build date, declared Shell compatibility and SHA-256 checksums.
+
+Install the downloaded ZIP:
+
+```bash
+gnome-extensions install --force ~/Downloads/kbd-informer@digitalspace.name.zip
+```
+
+Or build and install from source:
 
 ```bash
 git clone https://github.com/tomasmark79/kbd-informer.git
@@ -47,6 +58,11 @@ gnome-extensions prefs kbd-informer@digitalspace.name
 ./build.sh --check
 ./build.sh
 ```
+
+Each push to `main` runs the same build in GitHub Actions and updates the
+**Latest GitHub build** release after a successful build. The rolling `github-build`
+tag follows the published commit; the version in `metadata.json` is left unchanged.
+The workflow uses the built-in GitHub token and needs no additional secrets.
 
 The output is `dist/kbd-informer@digitalspace.name.zip`. `-b` and `-r` are build aliases;
 `-i` and `-ri` build the current sources and install them.
