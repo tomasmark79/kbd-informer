@@ -218,18 +218,7 @@ class PanelIndicator {
 }
 
 class InputDeviceManager {
-    constructor() {
-        this._seat = null;
-    }
-
     initialize() {
-        try {
-            // Try Clutter 1.24+ API first
-            this._seat = Clutter.get_default_backend().get_default_seat();
-        } catch (e) {
-            // Fallback to older DeviceManager API
-            this._seat = Clutter.DeviceManager.get_default();
-        }
     }
 
     getCurrentModifierState() {
@@ -238,7 +227,6 @@ class InputDeviceManager {
     }
 
     destroy() {
-        this._seat = null;
     }
 }
 
