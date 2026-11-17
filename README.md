@@ -9,7 +9,7 @@ the indicator can stay at the far left of the status icons. Supports multiple mo
 
 ## Requirements
 
-Declared GNOME Shell versions: **45–50**, as listed in `metadata.json`.
+Declared GNOME Shell versions: **45–51**, as listed in `metadata.json`.
 Build tools: Bash, Python 3, Node.js (syntax checks), zip and `glib-compile-schemas`.
 Local installation also requires `gnome-extensions`.
 
